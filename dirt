@@ -1,0 +1,281 @@
+#!/usr/bin/env python3
+
+'''
+Copyright (c) 2015, Maxim Konakov
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+3. Neither the name of the copyright holder nor the names of its contributors
+   may be used to endorse or promote products derived from this software without
+   specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+'''
+
+from sys import exit, argv, stderr, version_info
+
+if version_info.major < 3 or (version_info.major == 3 and version_info.minor < 4):
+	exit('ERROR: The script requires Python version 3.4.0 or newer')
+
+from os import readlink, cpu_count
+from pathlib import Path
+from errno import ENOENT
+from subprocess import Popen, PIPE
+from hashlib import md5
+from pickle import dump as store_data, load as load_data, PickleError
+
+# helpers ---------------------------------------------------------------------------------------------
+# error exit
+def die(obj):
+	exit('ERROR: ' + str(obj))
+
+# external command invocation
+def start_external(*args):
+	return Popen(args, universal_newlines = True, stdout = PIPE, stderr = PIPE)
+
+def get_external_result(proc):
+	out, err = proc.communicate()
+
+	if proc.poll() == 0:
+		return out.strip()
+
+	raise RuntimeError(err.strip())
+
+# safe unlink
+def safe_unlink(file):
+	try:
+		file.unlink()
+	except OSError:
+		pass
+
+# pickle data in one transaction
+def save_data(file, data):
+	new_file = file.with_suffix('.new')
+
+	try:
+		with new_file.open('wb') as f:
+			store_data(data, f, 4)	# '4' is the protocol version
+
+		new_file.replace(file)
+	except:
+		safe_unlink(new_file)
+		raise
+
+# setup -----------------------------------------------------------------------------------------------
+DIRT_HOME = Path('.dirt')
+HISTORY_FILE = DIRT_HOME.joinpath('history')
+
+# excluded pattern list
+def get_excluded():
+	try:
+		with DIRT_HOME.joinpath('excluded').open() as f:
+			return tuple(filter(None, (s.strip() for s in f)))
+	except OSError as e:
+		if e.errno == ENOENT:
+			return ()
+		die(e)
+
+# directory check
+def check_dir():
+	if not DIRT_HOME.exists() or not DIRT_HOME.is_dir():
+		die('This directory is not initialised.')
+
+# number of CPU on this machine
+NUM_CPU = cpu_count()
+
+if NUM_CPU is None:
+	NUM_CPU = 1
+
+# data save/restore -----------------------------------------------------------------------------------
+def save_history(data):
+	try:
+		save_data(HISTORY_FILE, data)
+	except (PickleError, OSError) as e:
+		die('Cannot store history data: ' + str(e))
+
+def load_history():
+	try:
+		with HISTORY_FILE.open('rb') as f:
+			return load_data(f)
+	except PickleError as e:
+		die('History file is corrupt: ' + str(e))
+	except OSError as e:
+		if e.errno == ENOENT:
+			return {}
+		die('Cannot read history file: ' + str(e))
+
+# directory scan --------------------------------------------------------------------------------------
+def select_files(excluded):
+	dirs = []
+
+	def select(entry):
+		if any(map(entry.match, excluded)):
+			return False
+		if entry.is_symlink() or entry.is_file():
+			return True
+		if entry.is_dir():
+			dirs.append(entry)
+		return False
+
+	try:
+		yield from filter(lambda entry: entry != DIRT_HOME and select(entry), Path().iterdir())
+
+		while dirs:
+			yield from filter(select, dirs.pop().iterdir())
+	except OSError as e:
+		die(e)
+
+# checksum calculations
+def start_calc_file_checksum(name):
+	return start_external('md5sum', name)
+
+def get_file_checksum(proc):
+	return int(get_external_result(proc).split(maxsplit = 1)[0], base = 16)
+
+def int_checksum(cs):
+	return int.from_bytes(cs.digest(), 'big')
+
+CHUNK_SIZE = 512 * 1024
+
+def calc_file_checksum(name):
+	cs = md5()
+
+	with open(name, 'rb', buffering = 0) as f:
+		chunk = f.read(CHUNK_SIZE)
+
+		while chunk:
+			cs.update(chunk)
+			chunk = f.read(CHUNK_SIZE)
+
+	return int_checksum(cs)
+	#return get_file_checksum(start_calc_file_checksum(name))
+
+# directory tree scan
+def scan():
+	running = {}
+
+	try:
+		for entry in select_files(get_excluded()):
+			path = str(entry)
+
+			if entry.is_symlink():
+				# do not follow the link, just calculate md5 of its target path
+				yield (path, int_checksum(md5(bytes(readlink(path), 'utf-8'))))
+			elif len(running) == 2 * NUM_CPU - 1 or entry.stat().st_size <= CHUNK_SIZE:
+				yield (path, calc_file_checksum(path))
+			else:
+				running[path] = start_calc_file_checksum(path)
+
+			# check for completed jobs
+			completed = []
+
+			for name, proc in running.items():
+				if proc.poll() is not None:
+					yield (name, get_file_checksum(proc))
+					completed.append(name)
+
+			# clear completed
+			for name in completed:
+				del running[name]
+
+		# wait for the remaining jobs to complete
+		while running:
+			name, proc = running.popitem()
+			yield (name, get_file_checksum(proc))
+	except Exception as e:
+		for name, proc in running:
+			if proc.poll() is None:
+				proc.terminate()
+				proc.wait()
+		die(e)
+
+# command processors -----------------------------------------------------------------------------------
+def cmd_init():
+	if not DIRT_HOME.exists():
+		DIRT_HOME.mkdir()
+	elif DIRT_HOME.is_dir():
+		print('This directory seems already initialised.', file = stderr)
+	else:
+		die('This directory cannot be initialised as it already contains something called "{}"' \
+			.format(DIRT_HOME.name))
+
+def cmd_show():
+	check_dir()
+	prev = load_history()
+	curr = dict(scan())
+
+	for name, cs in curr.items():
+		if name not in prev:
+			print('+ ' + name)
+		elif cs != prev[name]:
+			print('* ' + name)
+
+	for name in prev.keys():
+		if name not in curr:
+			print('- ' + name)
+
+def cmd_accept():
+	check_dir()
+	save_history(dict(scan()))
+
+def cmd_reset():
+	check_dir()
+
+	try:
+		HISTORY_FILE.unlink()
+	except OSError as e:
+		if e.errno != ENOENT:
+			die(e)
+
+USAGE = \
+'''Usage: {} COMMAND
+List added, deleted and modified files in the current directory.
+
+The COMMAND argument must be one of the following:
+  show     display all modifications made since the last 'accept'
+  accept   accept all the changes
+  init     initialise the current directory for tracking changes
+  reset    delete tracking history
+  help     display this help and exit'''.format(Path(argv[0]).name)
+
+def cmd_usage():
+	exit(USAGE)
+
+# entry point ----------------------------------------------------------------------------------------
+COMMANDS = { 'init' : cmd_init, \
+			 'show' : cmd_show, \
+			 'accept' : cmd_accept, \
+			 'reset' : cmd_reset,	\
+			 'help' : cmd_usage }
+
+if len(argv) == 1:
+	cmd_usage()
+
+if len(argv) > 2:
+	print('ERROR: Invalid command line parameters\n', file = stderr)
+	cmd_usage()
+
+if argv[1] not in COMMANDS:
+	print('ERROR: Unknown command "{}"\n'.format(argv[1]), file = stderr)
+	cmd_usage()
+
+try:
+	COMMANDS[argv[1]]()
+except KeyboardInterrupt:
+	die('Interrupted.')
