@@ -79,7 +79,7 @@ def save_data(file, data):
 
 # setup -----------------------------------------------------------------------------------------------
 DIRT_HOME = Path('.dirt')
-HISTORY_FILE = DIRT_HOME.joinpath('history')
+STATE_FILE = DIRT_HOME.joinpath('state')
 
 # excluded pattern list
 def get_excluded():
@@ -103,22 +103,22 @@ if NUM_CPU is None:
 	NUM_CPU = 1
 
 # data save/restore -----------------------------------------------------------------------------------
-def save_history(data):
+def save_state(data):
 	try:
-		save_data(HISTORY_FILE, data)
+		save_data(STATE_FILE, data)
 	except (PickleError, OSError) as e:
-		die('Cannot store history data: ' + str(e))
+		die('Cannot store directory state data: ' + str(e))
 
-def load_history():
+def load_state():
 	try:
-		with HISTORY_FILE.open('rb') as f:
+		with STATE_FILE.open('rb') as f:
 			return load_data(f)
 	except PickleError as e:
-		die('History file is corrupt: ' + str(e))
+		die('Directory state file is corrupt: ' + str(e))
 	except OSError as e:
 		if e.errno == ENOENT:
 			return {}
-		die('Cannot read history file: ' + str(e))
+		die('Cannot read directory state file: ' + str(e))
 
 # directory scan --------------------------------------------------------------------------------------
 def select_files(excluded):
@@ -217,7 +217,7 @@ def cmd_init():
 
 def cmd_show():
 	check_dir()
-	prev = load_history()
+	prev = load_state()
 	curr = dict(scan())
 
 	for name, cs in curr.items():
@@ -232,13 +232,13 @@ def cmd_show():
 
 def cmd_accept():
 	check_dir()
-	save_history(dict(scan()))
+	save_state(dict(scan()))
 
 def cmd_reset():
 	check_dir()
 
 	try:
-		HISTORY_FILE.unlink()
+		STATE_FILE.unlink()
 	except OSError as e:
 		if e.errno != ENOENT:
 			die(e)
@@ -250,8 +250,8 @@ List added, deleted and modified files in the current directory.
 The COMMAND argument must be one of the following:
   show     display all modifications made since the last 'accept'
   accept   accept all the changes
-  init     initialise the current directory for tracking changes
-  reset    delete tracking history
+  init     initialise the current directory for tracking
+  reset    delete tracking state
   help     display this help and exit'''.format(Path(argv[0]).name)
 
 def cmd_usage():
