@@ -56,3 +56,13 @@ For example, to exclude all `git` related subdirectories one can simply do
 ```bash
 $ echo .git > .dirt/excluded
 ```
+
+### System requirements
+Python version 3.4 or newer.
+
+So far the tool has been tested on Linux Mint 17.2, but it is likely to work on other 
+distributions as well.
+
+### Installation
+None as such, just copy the file `dirt` over to a directory listed in the `PATH` environment variable.
+
