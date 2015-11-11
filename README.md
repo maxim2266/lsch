@@ -1,7 +1,6 @@
 ## DIRT (DIRectory Tracker)
 
-A tiny Linux command line utility to monitor and display changes made to a directory tree
-since some point in the past.
+A tiny Linux command line utility to track and display changes made to a directory tree.
 
 ###### Licence: BSD 3-clause
 
@@ -30,7 +29,7 @@ changed (deleted, modified) files are important, for example, when creating an
 incremental archive. Personally, I use it to monitor my `Photo` folder where I regularly
 upload photographs from my camera and then I edit and/or reorganise them in some way.
 After some time it becomes difficult to recall which photographs have already been
-edited, what files have been added, deleted, etc., and this tool helps me to find
+edited, what files have been added, deleted, etc., and the tool helps me to find
 this out quickly.
 
 The utility also has the capability to filter out unwanted files to exclude them
@@ -47,6 +46,8 @@ md5 checksums. `dirt reset` command simply deletes the tracking file.
 
 Internally, the tool relies on `md5sum` Linux utility for processing larger files
 in parallel with the main program.
+
+Symbolic links are not followed, only their target pathnames get checksummed.
 
 Optionally, the `.dirt` directory may contain the file called `excluded`, where
 user can store a list of globs (see `glob(7)`) of the file/directory names he or she does not
