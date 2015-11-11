@@ -1,6 +1,6 @@
 ## DIRT (DIRectory Tracker)
 
-A tiny Linux command line utility to track and display changes made to a directory tree.
+Another little Linux command line utility to track changed files in a directory tree.
 
 ###### Licence: BSD 3-clause
 
