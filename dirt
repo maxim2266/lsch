@@ -97,11 +97,8 @@ def check_dir():
 	if not DIRT_HOME.exists() or not DIRT_HOME.is_dir():
 		die('This directory is not initialised.')
 
-# number of CPU on this machine
-NUM_CPU = cpu_count()
-
-if NUM_CPU is None:
-	NUM_CPU = 1
+# max. number of parallel calculations for this machine
+MAX_PARALLEL = 2 * (cpu_count() or 1) - 1
 
 # data save/restore -----------------------------------------------------------------------------------
 def save_state(data):
@@ -122,7 +119,7 @@ def load_state():
 		die('Cannot read directory state file: ' + str(e))
 
 # directory reader ------------------------------------------------------------------------------------
-def select_files():
+def file_list():
 	excluded = get_excluded()
 	dirs = []
 
@@ -183,7 +180,7 @@ def full_scan():
 	running = {}
 
 	try:
-		for entry in select_files():
+		for entry in file_list():
 			name = str(entry)
 
 			if entry.is_symlink():
@@ -194,27 +191,23 @@ def full_scan():
 
 				if size <= CHUNK_SIZE:
 					yield (name, FileInfo(size, short_sum, short_sum))
-				elif len(running) == 2 * NUM_CPU - 1:
+				elif len(running) == MAX_PARALLEL:
 					yield (name, FileInfo(size, short_sum, calc_file_sum(name)))
 				else:
 					running[name] = (size, short_sum, start_calc_file_sum(name))
 
 			# check for completed jobs
-			completed = []
+			completed = tuple((name, FileInfo(size, short_sum, get_file_sum(proc)))	\
+								for name, (size, short_sum, proc) in running.items()	\
+									if proc.poll() is not None)
 
-			for name, (size, short_sum, proc) in running.items():
-				if proc.poll() is not None:
-					yield (name, FileInfo(size, short_sum, get_file_sum(proc)))
-					completed.append(name)
-
-			# clear completed
-			for name in completed:
+			for name, info in completed:
 				del running[name]
+				yield (name, info)
 
 		# wait for the remaining jobs to complete
-		while running:
-			name, (size, short_sum, proc) = running.popitem()
-			yield (name, FileInfo(size, short_sum, get_file_sum(proc)))
+		yield from ((name, FileInfo(size, short_sum, get_file_sum(proc))) \
+						for name, (size, short_sum, proc) in running.items())
 	except:
 		for _, _, proc in running.values():
 			if proc.poll() is None:
@@ -228,48 +221,41 @@ def diff_scan():
 	running = {}
 
 	try:
-		for entry in select_files():
+		for entry in file_list():
 			name = str(entry)
 			prev_info = prev.pop(name, None)
 
 			if prev_info is None:
 				yield ('+', name)
+			elif entry.is_symlink():
+				if symlink_info(name) != prev_info:
+					yield ('*', name)
 			else:
-				if entry.is_symlink():
-					if symlink_info(name) != prev_info:
-						yield ('*', name)
-				else:
-					size = entry.stat().st_size
+				size = entry.stat().st_size
 
-					if size != prev_info.size or calc_short_sum(entry) != prev_info.short_sum:
-						yield ('*', name)
-					elif size > CHUNK_SIZE:
-						if len(running) == 2 * NUM_CPU - 1:
-							if calc_file_sum(name) != prev_info.full_sum:
-								yield ('*', name)
-						else:
-							running[name] = (prev_info.full_sum, start_calc_file_sum(name))
+				if size != prev_info.size or calc_short_sum(entry) != prev_info.short_sum:
+					yield ('*', name)
+				elif size > CHUNK_SIZE:
+					if len(running) == MAX_PARALLEL:
+						if calc_file_sum(name) != prev_info.full_sum:
+							yield ('*', name)
+					else:
+						running[name] = (prev_info.full_sum, start_calc_file_sum(name))
 
 			# check for completed jobs
-			completed = []
+			completed = tuple((name, get_file_sum(proc) != prev_sum)	\
+								for name, (prev_sum, proc) in running.items()	\
+									if proc.poll() is not None)
 
-			for name, (prev_sum, proc) in running.items():
-				if proc.poll() is not None:
-					if get_file_sum(proc) != prev_sum:
-						yield ('*', name)
-
-					completed.append(name)
-
-			# clear completed
-			for name in completed:
+			for name, flag in completed:
 				del running[name]
 
-		# wait for the remaining jobs to complete
-		while running:
-			name, (prev_sum, proc) = running.popitem()
+				if flag:
+					yield ('*', name)
 
-			if get_file_sum(proc) != prev_sum:
-				yield ('*', name)
+		# wait for the remaining jobs to complete
+		yield from (('*', name) for name, (prev_sum, proc) in running.items() if get_file_sum(proc) != prev_sum)
+
 	except:
 		for _, proc in running.values():
 			if proc.poll() is None:
@@ -280,7 +266,6 @@ def diff_scan():
 	# deleted entries
 	for name in prev.keys():
 		yield ('-', name)
-
 
 # command processors -----------------------------------------------------------------------------------
 def cmd_init():
@@ -295,8 +280,8 @@ def cmd_init():
 def cmd_show():
 	check_dir()
 
-	for sym, name in diff_scan():
-		print(sym, name)
+	for item in diff_scan():
+		print(*item)
 
 def cmd_accept():
 	check_dir()
@@ -347,5 +332,5 @@ try:
 	COMMANDS[argv[1]]()
 except KeyboardInterrupt:
 	die('Interrupted.')
-except OSError as e:
+except (OSError, RuntimeError) as e:
 	die(e)
