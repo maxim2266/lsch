@@ -41,8 +41,8 @@ The tool initialises the directory for tracking by creating `.dirt` subdirectory
 In this subdirectory the tool maintains the file called `state`, where it stores the
 tracking information. The information gets overwritten each time `dirt accept` command
 is invoked; initially the file does not exist. In Python terms,
-the file is a pickled dictionary object, mapping file pathnames to their corresponding
-md5 checksums. `dirt reset` command simply deletes the tracking file.
+the file is a pickled dictionary object, mapping file pathnames to a small tuple of
+tracking parameters. `dirt reset` command simply deletes the tracking file.
 
 Internally, the tool relies on `md5sum` Linux utility for processing larger files
 in parallel with the main program.
@@ -60,7 +60,7 @@ $ echo .git > .dirt/excluded
 ### System requirements
 Python version 3.4 or newer.
 
-So far the tool has been tested on Linux Mint 17.2, but it is likely to work on other 
+So far the tool has been tested on Linux Mint 17.2, but it is likely to work on other
 distributions as well.
 
 ### Installation
