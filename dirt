@@ -39,6 +39,7 @@ from errno import ENOENT
 from subprocess import Popen, PIPE
 from hashlib import md5
 from pickle import dump as store_data, load as load_data, PickleError
+from collections import namedtuple
 
 # helpers ---------------------------------------------------------------------------------------------
 # error exit
@@ -89,7 +90,7 @@ def get_excluded():
 	except OSError as e:
 		if e.errno == ENOENT:
 			return ()
-		die(e)
+		die('Cannot read excluded globs: ' + str(e))
 
 # directory check
 def check_dir():
@@ -120,8 +121,9 @@ def load_state():
 			return {}
 		die('Cannot read directory state file: ' + str(e))
 
-# directory scan --------------------------------------------------------------------------------------
-def select_files(excluded):
+# directory reader ------------------------------------------------------------------------------------
+def select_files():
+	excluded = get_excluded()
 	dirs = []
 
 	def select(entry):
@@ -133,27 +135,24 @@ def select_files(excluded):
 			dirs.append(entry)
 		return False
 
-	try:
-		yield from filter(lambda entry: entry != DIRT_HOME and select(entry), Path().iterdir())
+	yield from filter(lambda entry: entry != DIRT_HOME and select(entry), Path().iterdir())
 
-		while dirs:
-			yield from filter(select, dirs.pop().iterdir())
-	except OSError as e:
-		die(e)
+	while dirs:
+		yield from filter(select, dirs.pop().iterdir())
 
-# checksum calculations
-def start_calc_file_checksum(name):
+# checksum calculations -------------------------------------------------------------------------------
+def start_calc_file_sum(name):
 	return start_external('md5sum', name)
 
-def get_file_checksum(proc):
+def get_file_sum(proc):
 	return int(get_external_result(proc).split(maxsplit = 1)[0], base = 16)
 
-def int_checksum(cs):
+def int_sum(cs):
 	return int.from_bytes(cs.digest(), 'big')
 
 CHUNK_SIZE = 512 * 1024
 
-def calc_file_checksum(name):
+def calc_file_sum(name):
 	cs = md5()
 
 	with open(name, 'rb', buffering = 0) as f:
@@ -163,31 +162,49 @@ def calc_file_checksum(name):
 			cs.update(chunk)
 			chunk = f.read(CHUNK_SIZE)
 
-	return int_checksum(cs)
-	#return get_file_checksum(start_calc_file_checksum(name))
+	return int_sum(cs)
+	#return get_file_sum(start_calc_file_sum(name))
 
-# directory tree scan
-def scan():
+def calc_short_sum(entry):
+	with entry.open('rb') as f:
+		return int_sum(md5(f.read(CHUNK_SIZE)))
+
+# file info type
+FileInfo = namedtuple('FileInfo', 'size, short_sum, full_sum')
+
+def symlink_info(name):
+	path = bytes(readlink(name), 'utf-8')
+	cs = int_sum(md5(path))
+	return FileInfo(len(path), cs, cs)
+
+# directory scanners ----------------------------------------------------------------------------------
+# directory scan with md5 sums
+def full_scan():
 	running = {}
 
 	try:
-		for entry in select_files(get_excluded()):
-			path = str(entry)
+		for entry in select_files():
+			name = str(entry)
 
 			if entry.is_symlink():
-				# do not follow the link, just calculate md5 of its target path
-				yield (path, int_checksum(md5(bytes(readlink(path), 'utf-8'))))
-			elif len(running) == 2 * NUM_CPU - 1 or entry.stat().st_size <= CHUNK_SIZE:
-				yield (path, calc_file_checksum(path))
+				yield (name, symlink_info(name))
 			else:
-				running[path] = start_calc_file_checksum(path)
+				size = entry.stat().st_size
+				short_sum = calc_short_sum(entry)
+
+				if size <= CHUNK_SIZE:
+					yield (name, FileInfo(size, short_sum, short_sum))
+				elif len(running) == 2 * NUM_CPU - 1:
+					yield (name, FileInfo(size, short_sum, calc_file_sum(name)))
+				else:
+					running[name] = (size, short_sum, start_calc_file_sum(name))
 
 			# check for completed jobs
 			completed = []
 
-			for name, proc in running.items():
+			for name, (size, short_sum, proc) in running.items():
 				if proc.poll() is not None:
-					yield (name, get_file_checksum(proc))
+					yield (name, FileInfo(size, short_sum, get_file_sum(proc)))
 					completed.append(name)
 
 			# clear completed
@@ -196,14 +213,74 @@ def scan():
 
 		# wait for the remaining jobs to complete
 		while running:
-			name, proc = running.popitem()
-			yield (name, get_file_checksum(proc))
-	except Exception as e:
-		for name, proc in running:
+			name, (size, short_sum, proc) = running.popitem()
+			yield (name, FileInfo(size, short_sum, get_file_sum(proc)))
+	except:
+		for _, _, proc in running.values():
 			if proc.poll() is None:
 				proc.terminate()
 				proc.wait()
-		die(e)
+		raise
+
+# directory diff scan
+def diff_scan():
+	prev = load_state()
+	running = {}
+
+	try:
+		for entry in select_files():
+			name = str(entry)
+			prev_info = prev.pop(name, None)
+
+			if prev_info is None:
+				yield ('+', name)
+			else:
+				if entry.is_symlink():
+					if symlink_info(name) != prev_info:
+						yield ('*', name)
+				else:
+					size = entry.stat().st_size
+
+					if size != prev_info.size or calc_short_sum(entry) != prev_info.short_sum:
+						yield ('*', name)
+					elif size > CHUNK_SIZE:
+						if len(running) == 2 * NUM_CPU - 1:
+							if calc_file_sum(name) != prev_info.full_sum:
+								yield ('*', name)
+						else:
+							running[name] = (prev_info.full_sum, start_calc_file_sum(name))
+
+			# check for completed jobs
+			completed = []
+
+			for name, (prev_sum, proc) in running.items():
+				if proc.poll() is not None:
+					if get_file_sum(proc) != prev_sum:
+						yield ('*', name)
+
+					completed.append(name)
+
+			# clear completed
+			for name in completed:
+				del running[name]
+
+		# wait for the remaining jobs to complete
+		while running:
+			name, (prev_sum, proc) = running.popitem()
+
+			if get_file_sum(proc) != prev_sum:
+				yield ('*', name)
+	except:
+		for _, proc in running.values():
+			if proc.poll() is None:
+				proc.terminate()
+				proc.wait()
+		raise
+
+	# deleted entries
+	for name in prev.keys():
+		yield ('-', name)
+
 
 # command processors -----------------------------------------------------------------------------------
 def cmd_init():
@@ -217,22 +294,13 @@ def cmd_init():
 
 def cmd_show():
 	check_dir()
-	prev = load_state()
-	curr = dict(scan())
 
-	for name, cs in curr.items():
-		if name not in prev:
-			print('+ ' + name)
-		elif cs != prev[name]:
-			print('* ' + name)
-
-	for name in prev.keys():
-		if name not in curr:
-			print('- ' + name)
+	for sym, name in diff_scan():
+		print(sym, name)
 
 def cmd_accept():
 	check_dir()
-	save_state(dict(scan()))
+	save_state(dict(full_scan()))
 
 def cmd_reset():
 	check_dir()
@@ -241,7 +309,7 @@ def cmd_reset():
 		STATE_FILE.unlink()
 	except OSError as e:
 		if e.errno != ENOENT:
-			die(e)
+			raise e
 
 USAGE = \
 '''Usage: {} COMMAND
@@ -279,3 +347,5 @@ try:
 	COMMANDS[argv[1]]()
 except KeyboardInterrupt:
 	die('Interrupted.')
+except OSError as e:
+	die(e)
