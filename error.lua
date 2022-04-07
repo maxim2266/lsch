@@ -80,3 +80,17 @@ function try(err_handler, fn, ...)
 
 	return err_handler(pcall(fn, ...))
 end
+
+-- application entry point
+function run(fn, ...)
+	local ok, err = pcall(fn, ...)
+
+	if not ok then
+		if math.type(err) == "integer" then
+			os.exit(err)
+		end
+
+		perror(err)
+		os.exit(1)
+	end
+end

@@ -154,14 +154,5 @@ local function main()
 	end
 end
 
--- application entry point
-local ok, err = pcall(main)
-
-if not ok then
-	if math.type(err) == "integer" then
-		os.exit(err)
-	end
-
-	perror(err)
-	os.exit(1)
-end
+-- run the application
+run(main)
