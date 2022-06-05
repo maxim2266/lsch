@@ -3,6 +3,13 @@ local function Q(s) --> quoted string
 	return "'" .. s:gsub("'", "'\\''") .. "'"
 end
 
+-- create and work on a temporary file, deleting it on error
+local function with_temp_file(fn, ...)
+	local tmp = os.tmpname()
+
+	return try(on_error(os.remove, tmp), fn, tmp, ...)
+end
+
 -- constants
 local DB_NAME = "./.dirt.db"	-- database file name
 TYPE_UNKNOWN, TYPE_FILE, TYPE_LINK = 0, 1, 2	-- file types
@@ -94,16 +101,17 @@ function build_database() --> { name -> { kind, size, tag } }
 end
 
 -- save database
-local function do_save_database(db)
-	-- delete database file to avoid occasional SIGPIPEs on redirect errors
-	local ok, err, code = os.remove(DB_NAME)
+local db_script = "\nDEST=" .. Q(DB_NAME) .. [=[
 
-	if not ok and code ~= 2 then	-- ENOENT 2 No such file or directory
-		error(err)
-	end
+set -eu
 
-	-- write database file, gzip'ed
-	local out = ensure(io.popen("gzip -q -9 > " .. Q(DB_NAME), "w"))
+chmod "$(stat -c '%#a' "$DEST" 2>/dev/null || echo '0600')" "$SRC"
+mv -f -T "$SRC" "$DEST"
+]=]
+
+local function do_save_database(fname, db)
+	-- write database to the temporary file, gzip'ed
+	local out = ensure(io.popen("gzip -q -9 > " .. Q(fname), "w"))
 
 	try(on_error(io.close, out), function()
 	    ensure(out:write("return {\n"))
@@ -117,11 +125,12 @@ local function do_save_database(db)
 	end)
 
 	ensure(out:close())
+	ensure(os.execute("SRC=" .. Q(fname) .. db_script))	-- replace the actual database file
 end
 
 -- save database to the file DB_NAME
 function save_database(db)
-	try(on_error(os.remove, DB_NAME), do_save_database, db)
+	return with_temp_file(do_save_database, db)
 end
 
 -- load database from file DB_NAME
