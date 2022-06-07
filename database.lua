@@ -178,22 +178,16 @@ function create_empty_database()
 end
 
 -- dump
+local function kind_to_string(k)
+	return k == TYPE_FILE and "file"
+		or k == TYPE_LINK and "link"
+		or string.format("unknown (%q)", k)
+end
+
 function dump_database()
 	database_file_must_exist()
 
-	local function kind_to_string(k)
-		if k == TYPE_FILE then
-			return "file"
-		elseif k == TYPE_LINK then
-			return "link"
-		else
-			return string.format("unknown (%q)", k)
-		end
-	end
-
-	local db = load_database()
-
-	for name, stat in pairs(db) do
+	for name, stat in pairs(load_database()) do
 		ensure(io.stdout:write(string.format("%q\n  type: %s\n  size: %u\n   tag: %q\n",
 											 name, kind_to_string(stat.kind),
 											 stat.size, stat.tag)))

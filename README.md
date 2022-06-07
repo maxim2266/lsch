@@ -7,10 +7,10 @@ Another little Linux command line tool to track changes to a directory tree.
 $ dirt COMMAND [OPTIONS]...
 ```
 where `COMMAND` is one of the following:
-- `init`: initialises the current directory for tracking.
-- `commit`: records the state of the directory tree rooted at the current directory.
-- `list`: displays all the files added, deleted, or modified since the last `commit`.
-- `help`: displays a help string.
+- `init`: initialise the current directory for tracking.
+- `commit`: record the state of the directory tree rooted at the current directory.
+- `list`, `ls`: display all the files added, deleted, or modified since the last `commit`.
+- `help`: show help string.
 
 The `dirt list` command displays changed, added, and removed files, one per line, each prefixed
 by a status symbol and a space. The status symbol is '`+`' for added files,
@@ -22,14 +22,14 @@ It does not store any `diff` information, nor it maintains any history beyond th
 directory tree at the last `commit`. The same time the tool is useful in scenarios where
 only the names of the changed (deleted, modified) files are important, for example, when creating an
 incremental backup. Personally, I use it to monitor my `Pictures` folder where I regularly
-upload photographs from my camera and then edit and/or reorganise them in some way.
-After some time it becomes difficult to recall which files have been added, deleted, etc., and
+upload photographs from my camera, and then I edit and/or reorganise them in some way.
+After some time it becomes difficult to recall what changes have been made, and
 the tool helps me to find this out.
 
 ### Technical details
 The tool operates on the current directory only. The `dirt init` command initialises the directory
-for tracking by creating `.dirt.db` file. The file contains the state of the directory, and is
-updated on each `dirt commit`.
+for tracking by creating (initially empty) `.dirt.db` file. The file contains the state of the directory,
+and is updated on each `dirt commit`.
 
 Internally, the tool relies on `sha256sum` utility for calculating checksums of files. Those checksums
 are used for change detection.
