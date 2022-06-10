@@ -15,7 +15,7 @@ all: $(BIN)
 
 # compilation
 $(BIN): $(LUA_FILES)
-	luac -s -o $@ $^
+	luac5.3 -s -o $@ $^
 	sed -i '1s|^|#!/usr/bin/env lua5.3\n|' $@ && chmod +x $@
 
 # clean up
