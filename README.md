@@ -34,8 +34,8 @@ incremental backup.
 
 ### Technical details
 The tool operates on the current directory only. The `lsch init` command initialises the directory
-for tracking by creating (initially empty) `.lsch.db` file. The file contains the state of the directory,
-and is updated on each `lsch commit`.
+for tracking by creating `.lsch.db` file. The file contains the state of the directory, and is updated 
+on each `lsch commit`.
 
 Internally, the tool relies on `sha256sum` utility for calculating checksums of files. Those checksums
 are used for change detection.
