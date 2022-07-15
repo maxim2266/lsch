@@ -8,7 +8,7 @@ MAKEFLAGS += --no-builtin-rules --no-builtin-variables
 LUA_FILES := error.lua pump.lua database.lua main.lua
 
 # program binary
-BIN := dirt
+BIN := lsch
 
 # all
 all: $(BIN)

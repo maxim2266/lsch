@@ -16,13 +16,13 @@ local function usage()
 
 List all added, deleted, and modified files in the current directory and its subdirectories.
 
-Without CMD argument the tool shows all changes made since the last commit;
-  options:
+Without CMD argument the tool shows all changes made since the last commit.
+  Options:
     -0   use ASCII null as output separator
 
 The CMD argument, if given, must be one of the following:
-  init            initialise the current directory for tracking changes;
-                  options:
+  init            initialise the current directory for tracking changes
+                  Options:
                     -f,--force   remove any previous tracking data
   commit          commit all changes
   help,-h,--help  display this help and exit

@@ -11,7 +11,7 @@ local function with_temp_file(fn, ...)
 end
 
 -- constants
-local DB_NAME = "./.dirt.db"	-- database file name
+local DB_NAME = "./.lsch.db"	-- database file name
 TYPE_UNKNOWN, TYPE_FILE, TYPE_LINK = 0, 1, 2	-- file types
 
 -- walk directory tree and invoke callback on each file or link
