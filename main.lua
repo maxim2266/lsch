@@ -12,17 +12,18 @@ end
 
 -- display usage string and exit
 local function usage()
-	ensure(io.stderr:write("Usage: ", basename(), [=[ CMD [OPTIONS]...
+	ensure(io.stderr:write("Usage: ", basename(), [=[ [CMD] [OPTIONS]...
 
-Track added, deleted, and modified files in the current directory.
+List all added, deleted, and modified files in the current directory and its subdirectories.
 
-The CMD argument must be one of the following:
-  init            initialise current directory for tracking;
+Without CMD argument the tool shows all changes made since the last commit;
+  options:
+    -0   use ASCII null as output separator
+
+The CMD argument, if given, must be one of the following:
+  init            initialise the current directory for tracking changes;
                   options:
                     -f,--force   remove any previous tracking data
-  list,ls         display all modifications made since the last commit;
-                  options:
-                    -0   use ASCII null as output separator
   commit          commit all changes
   help,-h,--help  display this help and exit
 ]=]))
@@ -135,8 +136,6 @@ local function main()
 		["--help"] = usage,
 		["-h"] = usage,
 		["commit"] = commit,
-		["ls"] = ls,
-		["list"] = ls,
 		["init"] = init,
 		["dump"] = dump_database
 	}
@@ -146,11 +145,7 @@ local function main()
 	if cmd then
 		cmd(table.move(arg, 2, #arg, 1, {}))
 	else
-		if arg[1] then
-			perror(string.format("unknown command %q\n", arg[1]))
-		end
-
-		usage()
+		ls(table.move(arg, 1, #arg, 1, {}))
 	end
 end
 
