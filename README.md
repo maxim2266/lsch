@@ -21,9 +21,10 @@ The CMD argument, if given, must be one of the following:
   help,-h,--help  display this help and exit
 ```
 
-The modified files are displayed one per line, each prefixed with a status symbol and a space.
+Modified items are displayed one per line, each prefixed with a status symbol and a space.
 The status symbol is '`+`' for added files, '`-`' for deleted files, and '`*`' for modified files.
-Only regular files and symbolic links are tracked.
+Only regular files and symbolic links are tracked. The current directory and all its sub-directories
+must not be modified while the scan is in progress.
 
 The tool is not meant to replace version control systems like `svn` or `git`,
 it provides much simpler functionality, basically limited to detecting changed files only.
@@ -34,7 +35,7 @@ incremental backup.
 
 ### Technical details
 The tool operates on the current directory only. The `lsch init` command initialises the directory
-for tracking by creating `.lsch.db` file. The file contains the state of the directory, and is updated 
+for tracking by creating `.lsch.db` file. The file contains the state of the directory, and is updated
 on each `lsch commit`.
 
 Internally, the tool relies on `sha256sum` utility for calculating checksums of files. Those checksums
@@ -52,7 +53,7 @@ Lua version 5.3, plus the following (well-known) Linux utilities:
 * `readlink`
 * `xargs`
 
-So far the tool has been tested on Linux Mint 20.3 only, but it is likely to work on other
+So far the tool has been tested on Linux Mint 20.3 only, but it is likely to work on other Linux
 distributions as well.
 
 ### Installation
