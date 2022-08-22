@@ -40,7 +40,7 @@ function pump(source, fn)
 	elseif io.type(source) == "file" then
 		src = source
 	else
-		error(string.format('unexpected source type "%s" in function feed()', type(source)), 2)
+		error(string.format('unexpected source type "%s" in function pump()', type(source)), 2)
 	end
 
 	-- run the pump
