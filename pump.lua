@@ -36,7 +36,7 @@ function pump(source, fn)
 	if source == nil then
 		src = io.input()
 	elseif type(source) == "string" then
-		src = ensure(io.open(source))
+		src = just(io.open(source))
 	elseif io.type(source) == "file" then
 		src = source
 	else
@@ -47,10 +47,10 @@ function pump(source, fn)
 	local n = try(source and on_error(io.close, src), do_pump, src, fn)
 
 	if source then
-		ensure(src:close())
+		just(src:close())
 	end
 
 	-- the last line must be terminated too
-	ensure(n == 0,
-	       (type(source) == "string" and source or "input") .. ": missing terminator on the last line")
+	just(n == 0,
+	     (type(source) == "string" and source or "input") .. ": missing terminator on the last line")
 end

@@ -53,8 +53,8 @@ Lua version 5.3, plus the following (well-known) Linux utilities:
 * `readlink`
 * `xargs`
 
-So far the tool has been tested on Linux Mint 20.3 only, but it is likely to work on other Linux
-distributions as well.
+So far the tool has been tested on Linux Mint 20.3 only, but it is likely to work on other
+(at least Debian-based) Linux distributions as well.
 
 ### Installation
 None as such, just run `make`, and then copy the file `lsch` over to a directory listed in

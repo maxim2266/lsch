@@ -3,16 +3,16 @@
 -- https://github.com/python/cpython/blob/main/Lib/shlex.py#L323
 -- but for now we just replace newlines
 local function print_line(prefix, name)
-	ensure(io.write(prefix, " ", name:gsub("\n", "⏎"), "\n"))
+	just(io.write(prefix, " ", name:gsub("\n", "⏎"), "\n"))
 end
 
 local function print_line_0(prefix, name)
-	ensure(io.write(prefix, " ", name, "\0"))
+	just(io.write(prefix, " ", name, "\0"))
 end
 
 -- display usage string and exit
 local function usage()
-	ensure(io.stderr:write("Usage: ", basename(), [=[ [CMD] [OPTIONS]...
+	just(io.stderr:write("Usage: ", basename(), [=[ [CMD] [OPTIONS]...
 
 List all added, deleted, and modified files in the current directory and its subdirectories.
 

@@ -16,7 +16,7 @@ function pwarning(msg)
 end
 
 -- like assert(), but with more checks
-function ensure(ok, err, code, ...)
+function just(ok, err, code, ...)
 	if ok then
 		return ok, err, code, ...
 	end

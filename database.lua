@@ -18,7 +18,7 @@ TYPE_UNKNOWN, TYPE_FILE, TYPE_LINK = 0, 1, 2	-- file types
 local function walk(fn) --> nil
 	local cmd = "find . \\( -type f -or -type l \\) ! -path " .. Q(DB_NAME) .. " -printf '%y %s %p\\0'"
 
-	return pump(ensure(io.popen(cmd)), function(s)
+	return pump(just(io.popen(cmd)), function(s)
 		local t, n, name = s:match("^(%a) (%d+) (.+)$")
 
 		return fn(name,
@@ -31,27 +31,27 @@ end
 function traverse(fname, fn)
 	-- start sha256 calculator pipeline
 	-- TODO: the output may be mixed up (never happened so far...)
-	local sha = ensure(io.popen('xargs -n 1 -0 -r -P "$(nproc)" -- sha256sum -bz > ' .. Q(fname), "w"))
+	local sha = just(io.popen('xargs -n 1 -0 -r -P "$(nproc)" -- sha256sum -bz > ' .. Q(fname), "w"))
 
 	-- walk directory tree collecting stats
 	try(on_error(io.close, sha),
 	    walk, function(name, kind, size)
 			if kind == TYPE_FILE then
 				if fn(name, kind, size) and size > 0 then
-					ensure(sha:write(name, "\0"))
+					just(sha:write(name, "\0"))
 				end
 			elseif kind == TYPE_LINK then
-				local src = ensure(io.popen("readlink -n " .. Q(name)))
+				local src = just(io.popen("readlink -n " .. Q(name)))
 				local tag = src:read("a")
 
-				ensure(src:close())
+				just(src:close())
 				fn(name, kind, size, tag)
 			else
 				pwarning(string.format("object of unknown type: %q (skipped)", name))
 			end
 		end)
 
-	ensure(sha:close())
+	just(sha:close())
 end
 
 -- call 'fn' per each (name, tag) pair from file 'fname'
@@ -111,21 +111,21 @@ mv -f -T "$SRC" "$DEST"
 
 local function do_save_database(fname, db)
 	-- write database to the temporary file, gzip'ed
-	local out = ensure(io.popen("gzip -q -9 > " .. Q(fname), "w"))
+	local out = just(io.popen("gzip -q -9 > " .. Q(fname), "w"))
 
 	try(on_error(io.close, out), function()
-	    ensure(out:write("return {\n"))
+	    just(out:write("return {\n"))
 
 		for name, stat in pairs(db) do
-			ensure(out:write(string.format("[%q] = { kind = %u, size = %u, tag = %q },\n",
-	                                       name, stat.kind, stat.size, stat.tag)))
+			just(out:write(string.format("[%q] = { kind = %u, size = %u, tag = %q },\n",
+	                                     name, stat.kind, stat.size, stat.tag)))
 		end
 
-		ensure(out:write("}\n"))
+		just(out:write("}\n"))
 	end)
 
-	ensure(out:close())
-	ensure(os.execute("SRC=" .. Q(fname) .. db_script))	-- replace the actual database file
+	just(out:close())
+	just(os.execute("SRC=" .. Q(fname) .. db_script))	-- replace the actual database file
 end
 
 -- save database to the file DB_NAME
@@ -135,17 +135,17 @@ end
 
 -- load database from file DB_NAME
 function load_database() --> { name -> { kind, size, tag } }
-	local src = ensure(io.popen("gzip -cd " .. Q(DB_NAME)))
+	local src = just(io.popen("gzip -cd " .. Q(DB_NAME)))
 
 	local db = try(on_error(io.close, src), function()
 		local function src_iter()
 			return src:read(16 * 1024)
 		end
 
-		return ensure(load(src_iter, DB_NAME, "t", {}))()
+		return just(load(src_iter, DB_NAME, "t", {}))()
 	end)
 
-	ensure(src:close())
+	just(src:close())
 	return db
 end
 
@@ -161,7 +161,7 @@ function database_file_exists()
 		error(err)
 	end
 
-	return ensure(db:close())
+	return just(db:close())
 end
 
 function database_file_must_exist()
@@ -174,7 +174,7 @@ end
 
 -- create empty database file
 function create_empty_database()
-	ensure(os.execute("echo 'return {}' | gzip -9cn > " .. Q(DB_NAME)))
+	just(os.execute("echo 'return {}' | gzip -9cn > " .. Q(DB_NAME)))
 end
 
 -- dump
@@ -188,8 +188,8 @@ function dump_database()
 	database_file_must_exist()
 
 	for name, stat in pairs(load_database()) do
-		ensure(io.stdout:write(string.format("%q\n  type: %s\n  size: %u\n   tag: %q\n",
-											 name, kind_to_string(stat.kind),
-											 stat.size, stat.tag)))
+		just(io.stdout:write(string.format("%q\n  type: %s\n  size: %u\n   tag: %q\n",
+		                                   name, kind_to_string(stat.kind),
+		                                   stat.size, stat.tag)))
 	end
 end
