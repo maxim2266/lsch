@@ -174,7 +174,9 @@ end
 
 -- create empty database file
 function create_empty_database()
-	just(os.execute("echo 'return {}' | gzip -9cn > " .. Q(DB_NAME)))
+	local db = Q(DB_NAME)
+
+	just(os.execute("echo 'return {}' | gzip -9cn > " .. db .. " && chmod 0600 " .. db))
 end
 
 -- dump
