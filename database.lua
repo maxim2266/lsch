@@ -29,9 +29,7 @@ end
 
 -- traverse current directory and call the function with basic stats on each file or link
 function traverse(fname, fn)
-	-- start sha256 calculator pipeline
-	-- TODO: the output may be mixed up (never happened so far...)
-	local sha = just(io.popen('xargs -n 1 -0 -r -P "$(nproc)" -- sha256sum -bz > ' .. Q(fname), "w"))
+	local sha = just(io.open(fname, "w"))
 
 	-- walk directory tree collecting stats
 	try(on_error(io.close, sha),
@@ -56,7 +54,9 @@ end
 
 -- call 'fn' per each (name, tag) pair from file 'fname'
 function pump_tags(fname, fn)
-	pump(fname, function(s)
+	local cmd = 'xargs -n 1 -0 -r -P "$(nproc)" -- sha256sum -bz < ' .. Q(fname)
+
+	pump(just(io.popen(cmd)), function(s)
 		local sum, name = s:match("^(%x+) %*(.+)$")
 
 	    return fn(name, sum)
