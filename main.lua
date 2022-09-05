@@ -84,9 +84,9 @@ local function do_diff(fname, db)
 		db[name] = nil	-- this was either a link, or a file of zero size
 	end)
 
-	-- compare tags
-	pump_tags(fname, function(name, tag)
-		if tag ~= db[name].tag then
+	-- compare sums
+	pump_sums(fname, function(name, sum)
+		if sum ~= db[name].tag then
 			print_line("*", name)
 	    end
 

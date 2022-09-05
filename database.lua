@@ -53,7 +53,7 @@ function traverse(fname, fn)
 end
 
 -- call 'fn' per each (name, tag) pair from file 'fname'
-function pump_tags(fname, fn)
+function pump_sums(fname, fn)
 	local cmd = 'xargs -n 1 -0 -r -P "$(nproc)" -- sha256sum -bz < ' .. Q(fname)
 
 	pump(just(io.popen(cmd)), function(s)
@@ -78,11 +78,11 @@ local function do_build_database(fname) --> { name -> { kind, size, tag } }
 	end)
 
 	-- add checksums
-	pump_tags(fname, function(name, tag)
+	pump_sums(fname, function(name, sum)
 		local stat = db[name]
 
 		if stat then
-			stat["tag"] = tag
+			stat["tag"] = sum
 		else
 			error(string.format("stray file name %q (mixed up output of sha256 calculator?)", name))
 		end
