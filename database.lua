@@ -29,14 +29,14 @@ end
 
 -- traverse current directory and call the function with basic stats on each file or link
 function traverse(fname, fn)
-	local sha = just(io.open(fname, "w"))
+	local out = just(io.open(fname, "w"))
 
 	-- walk directory tree collecting stats
-	try(on_error(io.close, sha),
+	try(on_error(io.close, out),
 	    walk, function(name, kind, size)
 			if kind == TYPE_FILE then
 				if fn(name, kind, size) and size > 0 then
-					just(sha:write(name, "\0"))
+					just(out:write(name, "\0"))
 				end
 			elseif kind == TYPE_LINK then
 				local src = just(io.popen("readlink -n " .. Q(name)))
@@ -49,10 +49,10 @@ function traverse(fname, fn)
 			end
 		end)
 
-	just(sha:close())
+	just(out:close())
 end
 
--- call 'fn' per each (name, tag) pair from file 'fname'
+-- per each file name from 'fname' call 'fn' with (name, sum) pair
 function pump_sums(fname, fn)
 	local cmd = 'xargs -n 1 -0 -r -P "$(nproc)" -- sha256sum -bz < ' .. Q(fname)
 
