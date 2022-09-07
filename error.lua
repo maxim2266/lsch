@@ -30,7 +30,16 @@ function just(ok, err, code, ...)
 		end
 	end
 
-	error(err, 2)
+	error(err)
+end
+
+-- check pcall return and either re-raise the error, or return results
+function check_return(ok, err, ...)
+	if ok then
+		return err, ...
+	end
+
+	error(err)
 end
 
 -- wraps fn to create error handler for try() function

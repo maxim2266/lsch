@@ -51,7 +51,6 @@ function pump(source, fn)
 	end
 
 	-- the last line must be terminated too
-	if n ~= 0 then
-	    error((type(source) == "string" and source or "input") .. ": missing terminator on the last line")
-	end
+	just(n == 0,
+	     (type(source) == "string" and source or "input") .. ": missing terminator on the last line")
 end
