@@ -97,7 +97,7 @@ function build_database() --> { name -> { kind, size, tag } }
 	local ok, result = pcall(do_build_database, tmp)
 
 	os.remove(tmp)
-	return check_return(ok, result)
+	return just(ok, result)
 end
 
 -- save database
