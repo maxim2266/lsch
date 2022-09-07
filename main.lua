@@ -118,7 +118,7 @@ local function ls(args)
 	local ok, err = pcall(do_diff, tmp, db)
 
 	os.remove(tmp)
-	return check_return(ok, err)
+	return just_check(ok, err)
 end
 
 local function init(args)
