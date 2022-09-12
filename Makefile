@@ -2,22 +2,38 @@
 MAKEFLAGS += --no-builtin-rules --no-builtin-variables
 
 # targets
-.PHONY: all clean
+.PHONY: all clean test
 
 # source files
-LUA_FILES := error.lua pump.lua database.lua main.lua
+SRC_FILES := error.lua pump.lua database.lua main.lua
+TEST_FILES := error.lua pump.lua test.lua
 
-# program binary
+# binaries
 BIN := lsch
+TEST_BIN := run-test
+
+# Lua
+LUAC := luac5.3
+
+# binary maker
+MAKE_BIN = sed -i '1s|^|\#!/usr/bin/env lua5.3\n|' $@ && chmod +x $@
 
 # all
 all: $(BIN)
 
 # compilation
-$(BIN): $(LUA_FILES)
-	luac5.3 -s -o $@ $^
-	sed -i '1s|^|#!/usr/bin/env lua5.3\n|' $@ && chmod +x $@
+$(BIN): $(SRC_FILES)
+	$(LUAC) -s -o $@ $^
+	$(MAKE_BIN)
 
 # clean up
 clean:
-	rm -f $(BIN)
+	rm -f $(BIN) $(TEST_BIN)
+
+# test
+test: $(BIN) $(TEST_BIN)
+	./$(TEST_BIN)
+
+$(TEST_BIN): $(TEST_FILES)
+	$(LUAC) -o $@ $^
+	$(MAKE_BIN)

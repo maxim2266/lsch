@@ -91,6 +91,6 @@ function run(fn, ...)
 		end
 
 		perror(err)
-		os.exit(1)
+		os.exit(false)
 	end
 end

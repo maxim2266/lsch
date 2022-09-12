@@ -71,7 +71,7 @@ local function do_diff(fname, db)
 	        return
 		end
 
-		if kind ~= stat.kind or size ~= stat.size or ((type == TYPE_LINK or size == 0) and tag ~= stat.tag) then
+		if kind ~= stat.kind or size ~= stat.size or ((kind == TYPE_LINK or size == 0) and tag ~= stat.tag) then
 	        print_line("*", name)
 	        db[name] = nil
 	        return
