@@ -35,7 +35,7 @@ incremental backup.
 
 ### Technical details
 The tool operates on the current directory only. The `lsch init` command initialises the directory
-for tracking by creating `.lsch.db` file. The file contains the state of the directory and its 
+for tracking by creating `.lsch.db` file. The file contains the state of the directory and its
 sub-directories, and is updated on each `lsch commit`.
 
 Internally, the tool relies on `sha256sum` utility for calculating checksums of files. Those checksums
@@ -54,7 +54,7 @@ Lua version 5.3, plus the following (well-known) Linux utilities:
 * `xargs`
 
 So far the tool has been tested on Linux Mint 20.3 only, but it is likely to work on other
-(at least Debian-based) Linux distributions as well.
+(at least Debian-based) Linux distributions.
 
 ### Installation
 None as such, just run `make`, and then copy the file `lsch` over to a directory listed in

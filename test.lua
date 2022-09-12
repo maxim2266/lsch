@@ -42,9 +42,8 @@ local function create_random_file(fname)
 end
 
 -- write a line to STDOUT
-local function trace(...)
-	just(io.write(...))
-	just(io.write("\n"))
+local function trace(msg)
+	just(io.write(msg, "\n"))
 end
 
 -- find executable
@@ -90,8 +89,8 @@ local function make_expect(dir)
 end
 
 -- make executor
-local function make_exec(tmp)
-	local prefix = "set -e; alias lsch=" .. Q(lsch) .. "; cd " .. Q(tmp) .. "\n"
+local function make_exec(dir)
+	local prefix = "set -e; alias lsch=" .. Q(lsch) .. "; cd " .. Q(dir) .. "\n"
 
 	return function(cmd)
 		just(os.execute(prefix .. cmd))
@@ -110,12 +109,12 @@ local function all_tests(...)
 	elseif n == 1 then
 		trace("running 1 test...")
 	else
-		trace("running ", n, " tests...")
+		trace("running " .. n .. " tests...")
 	end
 
 	-- run the tests
 	for i = 1, n do
-		trace("[ test ", i, " ]")
+		trace("[ test " .. i .. " ]")
 
 		-- create temp. directory
 		local cmd = just(io.popen("mktemp -d"))
@@ -146,7 +145,7 @@ local function run_tests(...)
 end
 
 -- test cases
-local function test_1(tmp)
+local function test_base_ops(tmp)
 	create_random_file(tmp .. "/a")
 	create_random_file(tmp .. "/b")
 	create_random_file(tmp .. "/c")
@@ -156,7 +155,7 @@ local function test_1(tmp)
 
 	step("init")
 	exec("lsch init")
-	expect('+ ./a', '+ ./b', '+ ./c')
+	expect("+ ./a", "+ ./b", "+ ./c")
 
 	step("commit")
 	exec("lsch commit")
@@ -164,29 +163,50 @@ local function test_1(tmp)
 
 	step("change file")
 	write_file(tmp .. "/a", "###")
-	expect('* ./a')
+	expect("* ./a")
 	exec("lsch commit")
 
 	step("delete file")
 	just(os.remove(tmp .. "/a"))
-	expect('- ./a')
+	expect("- ./a")
 	exec("lsch commit")
 
 	step("empty file")
 	exec("touch a")
-	expect('+ ./a')
+	expect("+ ./a")
 	exec("lsch commit")
 
 	step("change empty file to link")
 	exec("rm a && ln -s b a")
-	expect('* ./a')
+	expect("* ./a")
 	exec("lsch commit")
 
 	step("change link")
 	exec("rm a && ln -s c a")
-	expect('* ./a')
+	expect("* ./a")
+end
+
+local function test_exotic_names(tmp)
+	create_random_file(tmp .. "/with space")
+	create_random_file(tmp .. "/with\nnewline")
+	create_random_file(tmp .. "/rockin'")
+	create_random_file(tmp .. "/one more\n")
+
+	local exec = make_exec(tmp)
+	local expect = make_expect(tmp)
+
+	step("init")
+	exec("lsch init")
+	expect("+ ./with space", "+ ./with\nnewline", "+ ./rockin'", "+ ./one more\n")
+
+	step("commit")
+	exec("lsch commit")
+	expect()
+
+	step("change")
+	write_file(tmp .. "/with\nnewline", "###")
+	expect("* ./with\nnewline")
 end
 
 -- entry point
-run_tests(test_1)
-
+run_tests(test_base_ops, test_exotic_names)
