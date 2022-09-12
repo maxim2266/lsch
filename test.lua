@@ -203,9 +203,14 @@ local function test_exotic_names(tmp)
 	exec("lsch commit")
 	expect()
 
-	step("change")
+	step("change one file")
 	write_file(tmp .. "/with\nnewline", "###")
 	expect("* ./with\nnewline")
+	exec("lsch commit")
+
+	step("remove all")
+	exec("rm ./*")
+	expect("- ./with space", "- ./with\nnewline", "- ./rockin'", "- ./one more\n")
 end
 
 -- entry point
