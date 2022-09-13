@@ -101,14 +101,6 @@ function build_database() --> { name -> { kind, size, tag } }
 end
 
 -- save database
-local db_script = "\nDEST=" .. Q(DB_NAME) .. [=[
-
-set -eu
-
-chmod "$(stat -c '%#a' "$DEST" 2>/dev/null || echo '0600')" "$SRC"
-mv -f -T "$SRC" "$DEST"
-]=]
-
 local function do_save_database(fname, db)
 	-- write database to the temporary file, gzip'ed
 	local out = just(io.popen("gzip -q -9 > " .. Q(fname), "w"))
@@ -125,7 +117,7 @@ local function do_save_database(fname, db)
 	end)
 
 	just(out:close())
-	just(os.execute("SRC=" .. Q(fname) .. db_script))	-- replace the actual database file
+	just(os.execute("mv -T " .. Q(fname) .. " " .. Q(DB_NAME)))	-- replace the actual database file
 end
 
 -- save database to the file DB_NAME
@@ -174,9 +166,13 @@ end
 
 -- create empty database file
 function create_empty_database()
-	local db = Q(DB_NAME)
+	with_temp_file(function(tmp)
+		tmp = Q(tmp)
 
-	just(os.execute("echo 'return {}' | gzip -9cn > " .. db .. " && chmod 0600 " .. db))
+		local cmd = "echo 'return {}' | gzip -9cn > " .. tmp .. " && mv -T " .. tmp .. " " .. Q(DB_NAME)
+
+		just(os.execute(cmd))
+	end)
 end
 
 -- dump
