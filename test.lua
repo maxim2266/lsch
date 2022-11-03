@@ -190,6 +190,8 @@ local function test_exotic_names(tmp)
 	create_random_file(tmp .. "/with space")
 	create_random_file(tmp .. "/with\nnewline")
 	create_random_file(tmp .. "/rockin'")
+	create_random_file(tmp .. "/rock'n'roll")
+	create_random_file(tmp .. "/o'ops'''")
 	create_random_file(tmp .. "/one more\n")
 
 	local exec = make_exec(tmp)
@@ -197,7 +199,12 @@ local function test_exotic_names(tmp)
 
 	step("init")
 	exec("lsch init")
-	expect("+ ./with space", "+ ./with\nnewline", "+ ./rockin'", "+ ./one more\n")
+	expect("+ ./with space",
+		   "+ ./with\nnewline",
+		   "+ ./rockin'",
+		   "+ ./rock'n'roll",
+		   "+ ./o'ops'''",
+		   "+ ./one more\n")
 
 	step("commit")
 	exec("lsch commit")
@@ -210,7 +217,12 @@ local function test_exotic_names(tmp)
 
 	step("remove all")
 	exec("rm ./*")
-	expect("- ./with space", "- ./with\nnewline", "- ./rockin'", "- ./one more\n")
+	expect("- ./with space",
+		   "- ./with\nnewline",
+		   "- ./rockin'",
+		   "- ./rock'n'roll",
+		   "- ./o'ops'''",
+		   "- ./one more\n")
 end
 
 -- entry point

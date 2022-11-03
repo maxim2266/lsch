@@ -5,7 +5,7 @@ end
 -- print message to STDERR
 local function show_msg(kind, msg, ...)
 	if select("#", ...) > 0 then
-		msg = string.format(msg, ...)
+		msg = msg:format(...)
 	end
 
 	return io.stderr:write(basename(), ": [", kind, "] ", msg, "\n")

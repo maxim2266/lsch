@@ -1,6 +1,8 @@
 -- shell quoting
 local function Q(s) --> quoted string
-	return "'" .. s:gsub("'", "'\\''") .. "'"
+	s = s:gsub("'+", function(m) return "'" .. string.rep("\\'", m:len()) .. "'" end)
+
+	return "'" .. s .. "'"
 end
 
 -- create and work on a temporary file, deleting it on error
