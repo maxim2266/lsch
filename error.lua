@@ -3,16 +3,20 @@ function basename(s)
 end
 
 -- print message to STDERR
-local function show_msg(kind, msg)
+local function show_msg(kind, msg, ...)
+	if select("#", ...) > 0 then
+		msg = string.format(msg, ...)
+	end
+
 	return io.stderr:write(basename(), ": [", kind, "] ", msg, "\n")
 end
 
-function perror(msg)
-	return show_msg("error", msg)
+function perror(msg, ...)
+	return show_msg("error", msg, ...)
 end
 
-function pwarning(msg)
-	return show_msg("warning", msg)
+function pwarning(msg, ...)
+	return show_msg("warning", msg, ...)
 end
 
 -- like assert(), but with more checks

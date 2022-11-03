@@ -49,7 +49,7 @@ local function one_option(args, ...)
 		end
 	end
 
-	perror(string.format("unknown option %q\n", opt))
+	perror("unknown option %q\n", opt)
 	usage()
 end
 

@@ -45,7 +45,7 @@ function traverse(fname, fn)
 				just(src:close())
 				fn(name, kind, size, tag)
 			else
-				pwarning(string.format("object of unknown type: %q (skipped)", name))
+				pwarning("object of unknown type: %q (skipped)", name)
 			end
 		end)
 
