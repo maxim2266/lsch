@@ -1,4 +1,4 @@
-## lsch: list changes made to the current directory
+## lsch: list all added, deleted, and modified files in the current directory and its subdirectories.
 
 Another little Linux command line tool to track changes to a directory tree.
 
