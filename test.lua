@@ -61,7 +61,7 @@ local function lsch_full_pathname()
 	return lsch:sub(1, -2)	-- cut off trailing newline
 end
 
--- make a fucntion that compares lsch output to the given list
+-- make a function that compares lsch output to the given list
 local function make_expect(dir)
 	local cmd = "cd " .. Q(dir) .. " && " .. Q(lsch) .. " -0"
 
@@ -192,6 +192,7 @@ local function test_exotic_names(tmp)
 	create_random_file(tmp .. "/rockin'")
 	create_random_file(tmp .. "/rock'n'roll")
 	create_random_file(tmp .. "/o'ops'''")
+	create_random_file(tmp .. "/'done'''")
 	create_random_file(tmp .. "/one more\n")
 
 	local exec = make_exec(tmp)
@@ -204,6 +205,7 @@ local function test_exotic_names(tmp)
 		   "+ ./rockin'",
 		   "+ ./rock'n'roll",
 		   "+ ./o'ops'''",
+		   "+ ./'done'''",
 		   "+ ./one more\n")
 
 	step("commit")
@@ -222,6 +224,7 @@ local function test_exotic_names(tmp)
 		   "- ./rockin'",
 		   "- ./rock'n'roll",
 		   "- ./o'ops'''",
+		   "- ./'done'''",
 		   "- ./one more\n")
 end
 
