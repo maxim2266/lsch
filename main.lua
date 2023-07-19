@@ -149,5 +149,22 @@ local function main()
 	end
 end
 
+-- Lua version check
+local function check_lua_version()
+	local major, minor = _VERSION:match("^Lua (%d+)%.(%d+)$")
+
+	if major == nil then
+		perror("cannot determine Lua version (got \"%s\")", _VERSION)
+		os.exit(false)
+	end
+
+	-- at least 5.3 is required
+	if major:match("^[0-4]$") or (major == "5" and minor:match("^[0-2]$")) then
+		perror("unsupported Lua version: " .. _VERSION)
+		os.exit(false)
+	end
+end
+
 -- run the application
+check_lua_version()
 run(main)

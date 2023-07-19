@@ -13,10 +13,15 @@ BIN := lsch
 TEST_BIN := run-test
 
 # Lua
-LUAC := luac5.3
+LUAC := luac
+
+# Lua version (at least 5.3 is required)
+ifneq ($(shell $(LUAC) -v | grep -qvE '^Lua ([0-4]\.)|(5\.[0-2]\.)' && echo $$?),0)
+  $(error "Unsupported Lua version")
+endif
 
 # binary maker
-MAKE_BIN = sed -i '1s|^|\#!/usr/bin/env lua5.3\n|' $@ && chmod +x $@
+MAKE_BIN = sed -i '1s|^|\#!/usr/bin/env lua\n|' $@ && chmod +x $@
 
 # all
 all: $(BIN)
