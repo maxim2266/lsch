@@ -16,8 +16,8 @@ TEST_BIN := run-test
 LUAC := luac
 
 # Lua version (at least 5.3 is required)
-ifneq ($(shell $(LUAC) -v | grep -qvE '^Lua ([0-4]\.)|(5\.[0-2]\.)' && echo $$?),0)
-  $(error "Unsupported Lua version")
+ifneq ($(shell $(LUAC) -v | grep -qvE '^Lua ([0-4]\.)|(5\.[0-2]\.)'; echo $$?),0)
+  $(error "missing Lua interpreter or unsupported version")
 endif
 
 # binary maker
