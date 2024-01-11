@@ -157,29 +157,29 @@ local function test_base_ops(tmp)
 	exec("lsch init")
 	expect("+ ./a", "+ ./b", "+ ./c")
 
-	step("commit")
-	exec("lsch commit")
+	step("reset")
+	exec("lsch reset")
 	expect()
 
 	step("change file")
 	write_file(tmp .. "/a", "###")
 	expect("* ./a")
-	exec("lsch commit")
+	exec("lsch reset")
 
 	step("delete file")
 	just(os.remove(tmp .. "/a"))
 	expect("- ./a")
-	exec("lsch commit")
+	exec("lsch reset")
 
 	step("empty file")
 	exec("touch a")
 	expect("+ ./a")
-	exec("lsch commit")
+	exec("lsch reset")
 
 	step("change empty file to link")
 	exec("rm a && ln -s b a")
 	expect("* ./a")
-	exec("lsch commit")
+	exec("lsch reset")
 
 	step("change link")
 	exec("rm a && ln -s c a")
@@ -208,14 +208,14 @@ local function test_exotic_names(tmp)
 		   "+ ./'done'''",
 		   "+ ./one more\n")
 
-	step("commit")
-	exec("lsch commit")
+	step("reset")
+	exec("lsch reset")
 	expect()
 
 	step("change one file")
 	write_file(tmp .. "/with\nnewline", "###")
 	expect("* ./with\nnewline")
-	exec("lsch commit")
+	exec("lsch reset")
 
 	step("remove all")
 	exec("rm ./*")
