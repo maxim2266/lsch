@@ -1,6 +1,6 @@
 ## lsch: list all added, deleted, and modified files in the current directory and its subdirectories.
 
-Another little Linux command line tool to track changes to a directory tree.
+Another little Linux command line tool to track changed files within a directory tree.
 
 ### Invocation
 ```
@@ -9,7 +9,7 @@ Usage: lsch [CMD] [OPTIONS]...
 
 List all added, deleted, and modified files in the current directory and its subdirectories.
 
-Without CMD argument the tool shows all changes made since the last commit.
+Without CMD argument the tool shows all changes made since the last reset.
   Options:
     -0   use ASCII null as output separator
 
@@ -17,7 +17,7 @@ The CMD argument, if given, must be one of the following:
   init            initialise the current directory for tracking changes
                   Options:
                     -f,--force   remove any previous tracking data
-  commit          commit all changes
+  reset           accept current state as the reference for further change tracking
   help,-h,--help  display this help and exit
 ```
 
@@ -26,24 +26,22 @@ The status symbol is '`+`' for added files, '`-`' for deleted files, and '`*`' f
 Only regular files and symbolic links are tracked. The current directory and all its sub-directories
 must not be modified while the scan is in progress.
 
-The tool is not meant to replace version control systems like `svn` or `git`,
+The tool is not meant to replace version control systems like `svn` or `git`, instead
 it provides much simpler functionality, basically limited to detecting changed files only.
 It does not store any `diff` information, nor it maintains any history beyond the state of the
-directory tree at the last `commit`. The same time the tool is useful in scenarios where
+directory tree at the last `reset`. The same time the tool is useful in scenarios where
 only the names of the changed (deleted, modified) files are important, for example, when creating an
 incremental backup.
 
 ### Technical details
 The tool operates on the current directory only. The `lsch init` command initialises the directory
 for tracking by creating `.lsch.db` file. The file contains the state of the directory and its
-sub-directories, and is updated on each `lsch commit`.
+sub-directories, and is updated on each `lsch reset`.
 
 Internally, the tool relies on `sha256sum` utility for calculating checksums of files. Those checksums
 are used for change detection.
 
 Symbolic links are not followed, only their target pathnames get compared.
-
-Just to clarify, this tool does not use `inotify`.
 
 ### System requirements
 Lua version 5.3, plus the following (well-known) Linux utilities:
@@ -53,8 +51,8 @@ Lua version 5.3, plus the following (well-known) Linux utilities:
 * `readlink`
 * `xargs`
 
-So far the tool has been tested on Linux Mint 20.3 only, but it is likely to work on other
-(at least Debian-based) Linux distributions.
+So far the tool has been tested on Linux Mint from version 20.3 and above, but it is likely to work
+on other (at least Debian-based) Linux distributions.
 
 ### Installation
 None as such, just run `make`, and then copy the file `lsch` over to a directory listed in

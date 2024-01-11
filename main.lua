@@ -1,6 +1,6 @@
--- shell escaping
--- https://github.com/GUI/lua-shell-games/blob/master/lib/shell-games.lua#L219
--- https://github.com/python/cpython/blob/main/Lib/shlex.py#L323
+-- shell escaping:
+--   https://github.com/GUI/lua-shell-games/blob/master/lib/shell-games.lua#L219
+--   https://github.com/python/cpython/blob/main/Lib/shlex.py#L323
 -- but for now we just replace newlines
 local function print_line(prefix, name)
 	just(io.write(prefix, " ", name:gsub("\n", "⏎"), "\n"))
@@ -16,7 +16,7 @@ local function usage()
 
 List all added, deleted, and modified files in the current directory and its subdirectories.
 
-Without CMD argument the tool shows all changes made since the last commit.
+Without CMD argument the tool shows all changes made since the last reset.
   Options:
     -0   use ASCII null as output separator
 
@@ -24,7 +24,7 @@ The CMD argument, if given, must be one of the following:
   init            initialise the current directory for tracking changes
                   Options:
                     -f,--force   remove any previous tracking data
-  commit          commit all changes
+  reset           accept current state as the reference for further change tracking
   help,-h,--help  display this help and exit
 ]=]))
 	os.exit(1)
@@ -100,7 +100,7 @@ local function do_diff(fname, db)
 end
 
 -- commands
-local function commit(args)
+local function reset(args)
 	no_options(args)
 	database_file_must_exist()
 	return save_database(build_database())
@@ -135,7 +135,7 @@ local function main()
 		["help"] = usage,
 		["--help"] = usage,
 		["-h"] = usage,
-		["commit"] = commit,
+		["reset"] = reset,
 		["init"] = init,
 		["dump"] = dump_database
 	}
