@@ -21,7 +21,7 @@ ifneq ($(shell $(LUAC) -v | grep -qvE '^Lua ([0-4]\.)|(5\.[0-2]\.)'; echo $$?),0
 endif
 
 # binary maker
-MAKE_BIN = sed -i '1s|^|\#!/usr/bin/env lua\n|' $@ && chmod +x $@
+MAKE_BIN = sed -i '1s|^|\#!/usr/bin/env lua\n|' $@ && chmod 0711 $@
 
 # all
 all: $(BIN)

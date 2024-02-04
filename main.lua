@@ -21,9 +21,9 @@ Without CMD argument the tool shows all changes made since the last reset.
     -0   use ASCII null as output separator
 
 The CMD argument, if given, must be one of the following:
-  init            initialise the current directory for tracking changes
+  init            create empty change tracking database in the current directory
                   Options:
-                    -f,--force   remove any previous tracking data
+                    -f,--force   discard any previous tracking data
   reset           accept current state as the reference for further change tracking
   help,-h,--help  display this help and exit
 ]=]))
