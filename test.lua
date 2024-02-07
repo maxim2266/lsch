@@ -72,7 +72,7 @@ local function make_expect(dir)
 			exp[select(i, ...)] = true
 		end
 
-		pump(just(io.popen(cmd)), function(s)
+		pump(cmd, function(s)
 			if not exp[s] then
 				error(string.format("unexpected line: %q", s))
 			end
@@ -115,18 +115,7 @@ local function all_tests(...)
 	-- run the tests
 	for i = 1, n do
 		trace("[ test " .. i .. " ]")
-
-		-- create temp. directory
-		local cmd = just(io.popen("mktemp -d"))
-		local tmp = cmd:read("l")
-
-		just(cmd:close())
-
-		-- run the test
-		local ok, err = pcall(select(i, ...), tmp)
-
-		os.execute("rm -rf " .. Q(tmp))
-		just_check(ok, err)
+		with_tmp_dir(select(i, ...))
 		trace("+ passed.")
 	end
 

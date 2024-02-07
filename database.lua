@@ -1,17 +1,3 @@
--- shell quoting
-local function Q(s) --> quoted string
-	s = s:gsub("'+", function(m) return "'" .. string.rep("\\'", m:len()) .. "'" end)
-
-	return "'" .. s .. "'"
-end
-
--- create and work on a temporary file, deleting it on error
-local function with_temp_file(fn, ...)
-	local tmp = os.tmpname()
-
-	return try(on_error(os.remove, tmp), fn, tmp, ...)
-end
-
 -- constants
 local DB_NAME = "./.lsch.db"	-- database file name
 TYPE_UNKNOWN, TYPE_FILE, TYPE_LINK = 0, 1, 2	-- file types
@@ -20,7 +6,7 @@ TYPE_UNKNOWN, TYPE_FILE, TYPE_LINK = 0, 1, 2	-- file types
 local function walk(fn) --> nil
 	local cmd = "find . \\( -type f -or -type l \\) ! -path " .. Q(DB_NAME) .. " -printf '%y %s %p\\0'"
 
-	return pump(just(io.popen(cmd)), function(s)
+	return pump(cmd, function(s)
 		local t, n, name = s:match("^(%a) (%d+) (.+)$")
 
 		return fn(name,
@@ -31,14 +17,11 @@ end
 
 -- traverse current directory and call the function with basic stats on each file or link
 function traverse(fname, fn)
-	local out = just(io.open(fname, "w"))
-
-	-- walk directory tree collecting stats
-	try(on_error(io.close, out),
-	    walk, function(name, kind, size)
+	with(just(io.open(fname, "w")), io.close, function(dest)
+		walk(function(name, kind, size)
 			if kind == TYPE_FILE then
 				if fn(name, kind, size) and size > 0 then
-					just(out:write(name, "\0"))
+					just(dest:write(name, "\0"))
 				end
 			elseif kind == TYPE_LINK then
 				local src = just(io.popen("readlink -n " .. Q(name)))
@@ -50,15 +33,14 @@ function traverse(fname, fn)
 				pwarning("object of unknown type: %q (skipped)", name)
 			end
 		end)
-
-	just(out:close())
+	end)
 end
 
 -- per each file name from 'fname' call 'fn' with (name, sum) pair
 function pump_sums(fname, fn)
 	local cmd = 'xargs -n 1 -0 -r -P "$(nproc)" -- sha256sum -bz < ' .. Q(fname)
 
-	pump(just(io.popen(cmd)), function(s)
+	pump(cmd, function(s)
 		local sum, name = s:match("^(%x+) %*(.+)$")
 
 	    return fn(name, sum)
@@ -86,7 +68,7 @@ local function do_build_database(fname) --> { name -> { kind, size, tag } }
 		if stat then
 			stat["tag"] = sum
 		else
-			error(string.format("stray file name %q (mixed up output of sha256 calculator?)", name))
+			fail("stray file name %q (mixed up output of sha256 calculator?)", name)
 		end
 	end)
 
@@ -95,52 +77,41 @@ end
 
 -- pcall(do_build_database)
 function build_database() --> { name -> { kind, size, tag } }
-	local tmp = os.tmpname()
-	local ok, result = pcall(do_build_database, tmp)
-
-	os.remove(tmp)
-	return just_check(ok, result)
+	return with_tmp_file(do_build_database)
 end
 
 -- save database
 local function do_save_database(fname, db)
 	-- write database to the temporary file, gzip'ed
-	local out = just(io.popen("gzip -q -9 > " .. Q(fname), "w"))
-
-	try(on_error(io.close, out), function()
-	    just(out:write("return {\n"))
+	with(just(io.popen("gzip -q -9 > " .. Q(fname), "w")), io.close, function(dest)
+	    just(dest:write("return {\n"))
 
 		for name, stat in pairs(db) do
-			just(out:write(string.format("[%q] = { kind = %u, size = %u, tag = %q },\n",
+			just(dest:write(string.format("[%q] = { kind = %u, size = %u, tag = %q },\n",
 	                                     name, stat.kind, stat.size, stat.tag)))
 		end
 
-		just(out:write("}\n"))
+		just(dest:write("}\n"))
 	end)
 
-	just(out:close())
-	just(os.execute("mv -T " .. Q(fname) .. " " .. Q(DB_NAME)))	-- replace the actual database file
+	-- replace the actual database file
+	just(os.execute("mv -T " .. Q(fname) .. " " .. Q(DB_NAME)))
 end
 
 -- save database to the file DB_NAME
 function save_database(db)
-	return with_temp_file(do_save_database, db)
+	return with_tmp_file(do_save_database, db)
 end
 
 -- load database from file DB_NAME
 function load_database() --> { name -> { kind, size, tag } }
-	local src = just(io.popen("gzip -cd " .. Q(DB_NAME)))
-
-	local db = try(on_error(io.close, src), function()
+	return with(just(io.popen("gzip -cd " .. Q(DB_NAME))), io.close, function(src)
 		local function src_iter()
 			return src:read(16 * 1024)
 		end
 
 		return just(load(src_iter, DB_NAME, "t", {}))()
 	end)
-
-	just(src:close())
-	return db
 end
 
 -- test if database file exists
@@ -152,7 +123,7 @@ function database_file_exists()
 			return false
 		end
 
-		error(err)
+		fail(err)
 	end
 
 	return just(db:close())
@@ -160,7 +131,7 @@ end
 
 function database_file_must_exist()
 	if not database_file_exists() then
-		error("database file is not found in this directory (run `"
+		fail("database file is not found in this directory (run `"
 			  .. basename()
 			  .. " init' to create one)")
 	end
@@ -168,7 +139,7 @@ end
 
 -- create empty database file
 function create_empty_database()
-	with_temp_file(function(tmp)
+	with_tmp_file(function(tmp)
 		tmp = Q(tmp)
 
 		local cmd = "echo 'return {}' | gzip -9cn > " .. tmp .. " && mv -T " .. tmp .. " " .. Q(DB_NAME)

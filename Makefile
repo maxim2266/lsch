@@ -5,12 +5,12 @@ MAKEFLAGS += --no-builtin-rules --no-builtin-variables
 .PHONY: all clean test
 
 # source files
-SRC_FILES := error.lua pump.lua database.lua main.lua
-TEST_FILES := error.lua pump.lua test.lua
+SRC_FILES := runtime.lua database.lua main.lua
+TEST_FILES := runtime.lua test.lua
 
 # binaries
 BIN := lsch
-TEST_BIN := run-test
+TEST_BIN := lsch-test
 
 # Lua
 LUAC := luac

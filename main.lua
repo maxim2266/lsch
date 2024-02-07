@@ -93,7 +93,7 @@ local function do_diff(fname, db)
 		db[name] = nil
 	end)
 
-	-- all remaining must have been deleted
+	-- all remaining items must have been deleted
 	for name in pairs(db) do
 		print_line("-", name)
 	end
@@ -114,16 +114,13 @@ local function ls(args)
 	database_file_must_exist()
 
 	local db = load_database()
-	local tmp = os.tmpname()
-	local ok, err = pcall(do_diff, tmp, db)
 
-	os.remove(tmp)
-	return just_check(ok, err)
+	with_tmp_file(do_diff, db)
 end
 
 local function init(args)
 	if not one_option(args, "-f", "--force") and database_file_exists() then
-		error("database file already exists")
+		fail("database file already exists")
 	end
 
 	create_empty_database()
@@ -147,19 +144,6 @@ local function main()
 	else
 		ls(table.move(arg, 1, #arg, 1, {}))
 	end
-end
-
--- Lua version check (at least 5.3 is required)
-local function good_lua_version()
-	local major, minor = _VERSION:match("^Lua ([5-9])%.(%d+)$")
-
-	return major and (major ~= "5" or tonumber(minor) >= 3)
-end
-
--- run the application
-if not good_lua_version() then
-	perror("unsupported interpreter version: " .. _VERSION)
-	os.exit(false)
 end
 
 run(main)
