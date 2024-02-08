@@ -94,7 +94,7 @@ do
 			os.exit(err)
 		end
 
-		io.stderr:write(program_name, ": [error] ", tostring(err):gsub("%s+$", ""), "\n")
+		perror(tostring(err):gsub("%s+$", ""))
 		os.exit(false)
 	end
 

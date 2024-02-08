@@ -75,7 +75,7 @@ local function do_build_database(fname) --> { name -> { kind, size, tag } }
 	return db
 end
 
--- pcall(do_build_database)
+-- build database
 function build_database() --> { name -> { kind, size, tag } }
 	return with_temp_file(do_build_database)
 end
@@ -131,9 +131,8 @@ end
 
 function database_file_must_exist()
 	if not database_file_exists() then
-		fail("database file is not found in this directory (run `"
-			  .. basename()
-			  .. " init' to create one)")
+		fail("database file is not found in this directory (run '%s init' to create one)",
+			program_name)
 	end
 end
 

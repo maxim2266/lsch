@@ -12,7 +12,7 @@ end
 
 -- display usage string and exit
 local function usage()
-	just(io.stderr:write("Usage: ", basename(), [=[ [CMD] [OPTIONS]...
+	just(io.stderr:write("Usage: ", program_name, [=[ [CMD] [OPTIONS]...
 
 List all added, deleted, and modified files in the current directory and its subdirectories.
 
@@ -112,10 +112,7 @@ local function ls(args)
 	end
 
 	database_file_must_exist()
-
-	local db = load_database()
-
-	with_temp_file(do_diff, db)
+	with_temp_file(do_diff, load_database())
 end
 
 local function init(args)

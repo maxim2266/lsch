@@ -1,6 +1,6 @@
 ## lsch: list all added, deleted, and modified files in the current directory and its subdirectories.
 
-Another little Linux command line tool to track changed files within a directory tree.
+Another little command line tool for Linux to track modifications within a directory tree.
 
 ### Invocation
 ```
