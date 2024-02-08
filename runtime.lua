@@ -125,7 +125,7 @@ do
 	end
 
 	-- [global] execute fn with a temporary file name, removing the file in the end
-	function with_tmp_file(fn, ...)
+	function with_temp_file(fn, ...)
 		return with(os.tmpname(), _remove, fn, ...)
 	end
 
@@ -135,7 +135,7 @@ do
 	end
 
 	-- [global] execute fn with a temporary directory name, removing the directory in the end
-	function with_tmp_dir(fn, ...)
+	function with_temp_dir(fn, ...)
 		-- create temp. directory
 		local cmd = just(io.popen("mktemp -d"))
 		local tmp = cmd:read("l")

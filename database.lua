@@ -77,7 +77,7 @@ end
 
 -- pcall(do_build_database)
 function build_database() --> { name -> { kind, size, tag } }
-	return with_tmp_file(do_build_database)
+	return with_temp_file(do_build_database)
 end
 
 -- save database
@@ -100,7 +100,7 @@ end
 
 -- save database to the file DB_NAME
 function save_database(db)
-	return with_tmp_file(do_save_database, db)
+	return with_temp_file(do_save_database, db)
 end
 
 -- load database from file DB_NAME
@@ -139,7 +139,7 @@ end
 
 -- create empty database file
 function create_empty_database()
-	with_tmp_file(function(tmp)
+	with_temp_file(function(tmp)
 		tmp = Q(tmp)
 
 		local cmd = "echo 'return {}' | gzip -9cn > " .. tmp .. " && mv -T " .. tmp .. " " .. Q(DB_NAME)

@@ -115,7 +115,7 @@ local function ls(args)
 
 	local db = load_database()
 
-	with_tmp_file(do_diff, db)
+	with_temp_file(do_diff, db)
 end
 
 local function init(args)

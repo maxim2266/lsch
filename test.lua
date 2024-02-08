@@ -115,7 +115,7 @@ local function all_tests(...)
 	-- run the tests
 	for i = 1, n do
 		trace("[ test " .. i .. " ]")
-		with_tmp_dir(select(i, ...))
+		with_temp_dir(select(i, ...))
 		trace("+ passed.")
 	end
 
