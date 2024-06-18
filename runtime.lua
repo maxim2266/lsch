@@ -24,17 +24,6 @@ do
 	end
 end
 
-
--- Lua version check (at least 5.3 is required)
-do
-	local major, minor = _VERSION:match("^Lua ([5-9])%.(%d+)$")
-
-	if not major or (major == "5" and tonumber(minor) < 3) then
-		perror("cannot run with Lua version %q (at least v5.3 is required)\n", _VERSION)
-		os.exit(false)
-	end
-end
-
 -- [global] shell quoting
 function Q(s) --> quoted string
 	s = s:gsub("'+", function(m) return "'" .. string.rep("\\'", m:len()) .. "'" end)
