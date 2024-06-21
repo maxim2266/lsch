@@ -13,11 +13,11 @@ BIN := lsch
 TEST_BIN := lsch-test
 
 # Lua
-LUAC := luac5.3
-LUA  := lua5.3
+LUA_VER	:= 5.3
+LUAC	:= luac$(LUA_VER)
 
 # binary maker
-MAKE_BIN = sed -i '1s|^|\#!/usr/bin/env $(LUA)\n|' $@ && chmod 0711 $@
+MAKE_BIN = sed -i '1s|^|\#!/usr/bin/env lua$(LUA_VER)\n|' $@ && chmod 0711 $@
 
 # all
 all: $(BIN)
