@@ -1,7 +1,3 @@
--- shell escaping:
---   https://github.com/GUI/lua-shell-games/blob/master/lib/shell-games.lua#L219
---   https://github.com/python/cpython/blob/main/Lib/shlex.py#L323
--- but for now we just replace newlines
 local function print_line(prefix, name)
 	just(io.write(prefix, " ", name:gsub("\n", "⏎"), "\n"))
 end

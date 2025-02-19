@@ -25,6 +25,8 @@ do
 end
 
 -- [global] shell quoting
+--   https://github.com/GUI/lua-shell-games/blob/master/lib/shell-games.lua#L219
+--   https://github.com/python/cpython/blob/main/Lib/shlex.py#L323
 function Q(s) --> quoted string
 	s = s:gsub("'+", function(m) return "'" .. string.rep("\\'", m:len()) .. "'" end)
 
