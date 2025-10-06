@@ -1,40 +1,37 @@
-# Disable built-in rules and variables
+# disable built-in rules and variables
 MAKEFLAGS += --no-builtin-rules --no-builtin-variables
 
 # targets
-.PHONY: all clean test
-
-# source files
-SRC_FILES := runtime.lua database.lua main.lua
-TEST_FILES := runtime.lua test.lua
+.PHONY: clean test
 
 # binaries
-BIN := lsch
-TEST_BIN := lsch-test
+BIN  := lsch
+TEST := lsch-test
 
-# Lua
-LUA_VER	:= 5.3
-LUAC	:= luac$(LUA_VER)
+# Lua version
+LUA_VER := 5.4
 
-# binary maker
-MAKE_BIN = sed -i '1s|^|\#!/usr/bin/env lua$(LUA_VER)\n|' $@ && chmod 0711 $@
+# clear targets on error
+.DELETE_ON_ERROR:
 
-# all
-all: $(BIN)
+# compilation instructions
+define COMPILE
+	luac$(LUA_VER) -o $@ $^
+	sed -i '1s|^|\#!/usr/bin/env lua$(LUA_VER)\n|' $@
+	chmod 0711 $@
+endef
 
 # compilation
-$(BIN): $(SRC_FILES)
-	$(LUAC) -s -o $@ $^
-	$(MAKE_BIN)
+$(BIN): app.lua main.lua
+	$(COMPILE)
 
-# clean up
+# cleanup
 clean:
-	rm -f $(BIN) $(TEST_BIN)
+	rm -f $(BIN) $(TEST)
 
-# test
-test: $(BIN) $(TEST_BIN)
-	./$(TEST_BIN)
+# testing
+test: $(TEST)
 
-$(TEST_BIN): $(TEST_FILES)
-	$(LUAC) -o $@ $^
-	$(MAKE_BIN)
+$(TEST): app.lua test_app.lua
+	$(COMPILE)
+	./$@

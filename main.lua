@@ -1,142 +1,296 @@
-local function print_line(prefix, name)
-	just(io.write(prefix, " ", name:gsub("\n", "⏎"), "\n"))
-end
+assert(app, 'missing "app.lua"')
 
-local function print_line_0(prefix, name)
-	just(io.write(prefix, " ", name, "\0"))
-end
+-- database file name
+local DB_NAME <const> = ".lsch.db"
 
--- display usage string and exit
-local function usage()
-	just(io.stderr:write("Usage: ", program_name, [=[ [CMD] [OPTIONS]...
+-- recursive directory iterator
+local function scan_dir(ctx) --> iterator
+	local just <const> = context("directory scanner", ctx)
+	local src = just(io.popen("find . -type 'f,l' -printf '%y %s %p\\0' -type l -printf '%l\\0'"))
 
-List all added, deleted, and modified files in the current directory and its subdirectories.
+	src:setvbuf("full")
 
-Without CMD argument the tool shows all changes made since the last reset.
-  Options:
-    -0   use ASCII null as output separator
+	local next_line <const> = io.lines_from(src, "\0")
 
-The CMD argument, if given, must be one of the following:
-  init            create empty change tracking database in the current directory
-                  Options:
-                    -f,--force   discard any previous tracking data
-  reset           accept current state as the reference for further change tracking
-  help,-h,--help  display this help and exit
-]=]))
-	os.exit(1)
-end
+	local function iter()
+		-- next line
+		local s <const> = next_line()
 
--- check if there is exactly one command line option that matches any of the given names
-local function one_option(args, ...)
-	if #args == 0 then
-		return false
+		if not s then
+			-- close the file handle, but only once
+			if io.type(src) == "file" then
+				just(src:close())
+			end
+
+			return
+		end
+
+		-- make item
+		local item <const> = {}
+
+		item.type, item.size, item.name = s:match("^([fl]) (%d+) (.+)$")
+
+		if not item.type then
+			just(src:close())	-- the command may have failed
+			just:fail("unexpected input: %q", s)
+		end
+
+		-- update item values
+		item.size = math.tointeger(item.size)
+		item.name = item.name:sub(3)	-- remove './' prefix
+
+		-- skip own database
+		if item.name == DB_NAME then
+			return iter()
+		end
+
+		-- symlink
+		if item.type == "l" then
+			-- link has its target name on the next line
+			item.tag = next_line()
+
+			if not item.tag or #item.tag == 0 then
+				just(src:close())	-- the command may have failed
+				just:fail("invalid link name: %q", item.tag or "<nil>")
+			end
+		end
+
+		return item
 	end
 
-	if #args > 1 then
-		perror("too many options\n")
-		usage()
+	return iter
+end
+
+-- sha256 calculator
+local function calc_sums(fname, ctx) --> iterator over (name, sum) pairs
+	local just <const> = context("sha256 calculator", ctx)
+	local cmd <const> = 'xargs -n 1 -0 -r -P "$(nproc)" -- sha256sum -bz < ' .. shell.quote(fname)
+	local src <const> = just(io.popen(cmd))
+
+	src:setvbuf("full")
+
+	local next_line <const> = io.lines_from(src, "\0")
+
+	return function()
+		-- next line
+		local s <const> = next_line()
+
+		if not s then
+			-- close the file handle, but only once
+			if io.type(src) == "file" then
+				just(src:close())
+			end
+
+			return
+		end
+
+		-- get the sum
+		local sum, name = s:match("^(%x+) %*(.+)$")
+
+		if not sum then
+			just(src:close())	-- the command may have failed
+			just:fail("invalid sha256 calculator input: %q", s)
+		end
+
+		return name, sum
+	end
+end
+
+-- scanner
+local function scan(consume, preview)
+	-- default preview function
+	if not preview then
+		preview = function() end
 	end
 
-	local opt = args[1]
+	-- error context
+	local just <const> = context("scanner")
 
-	for i = 1, select("#", ...) do
-		if opt == select(i, ...) then
+	-- temporary file for file names
+	local tmp_name <const> = os.tmpfile()
+	local tmp <const> = just(io.open(tmp_name, "w"))
+
+	tmp:setvbuf("full")
+
+	-- file data
+	local files <const> = {}
+	local file_count = 0
+
+	-- directory scan
+	for item in scan_dir() do
+		if not preview(item) then
+			if item.type == "l" or item.size == 0 then
+				consume(item)	-- links and empty files do not need checksums
+			else
+				-- schedule checksum calculation
+				just(tmp:write(item.name, "\0"))
+
+				files[item.name] = item
+				file_count = file_count + 1
+			end
+		end
+	end
+
+	just(tmp:close())
+
+	-- see if there are checksums to calculate
+	if file_count == 0 then
+		return
+	end
+
+	-- checksumming
+	for name, sum in calc_sums(tmp_name, just) do
+		local item <const> = files[name]
+
+		if not item then
+			just:fail("unmatched file %q", name)
+		end
+
+		item.tag = sum
+		files[name] = nil
+		file_count = file_count - 1
+
+		consume(item)
+	end
+
+	-- one last check
+	if file_count ~= 0 then
+		just:fail("%d unprocessed file(s) still remain", file_count)
+	end
+end
+
+-- template of the command to write database (because gzip errors may be confusing)
+local WRITE_DB_CMD <const> = [=[
+die() {
+	echo >&2 "${prog}: [error]" "$@"
+	exit 1
+}
+
+if [ -e '${db}' ]
+then
+	[ ! -f '${db}' ] && die 'database file "${db}" is not a regular file'
+	[ ! -w '${db}' ] && die 'database file "${db}" is not writable'
+fi
+
+gzip -n9c '${tmp}' > '${db}'
+]=]
+
+-- create and store a new database ("lsch --reset")
+local function reset()
+	local just <const> = context("writing new database")
+	local patt <const> = "\t[%q] = { type = %q, size = %u, tag = %q },\n"
+	local tmp_name <const> = os.tmpfile()
+	local tmp <const> = just(io.open(tmp_name, "w"))
+
+	tmp:setvbuf("full")
+
+	just(tmp:write("return {\n"))
+
+	scan(function(item)
+		just(tmp:write(patt:format(item.name, item.type, item.size, item.tag)))
+	end)
+
+	just(tmp:write("}\n"))
+	just(tmp:close())
+	just(os.execute(WRITE_DB_CMD:expand{ tmp = tmp_name, db = DB_NAME, prog = app.NAME }))
+end
+
+-- template of the command to read database (because gzip errors may be confusing)
+local LOAD_DB_CMD <const> = [=[
+die() {
+	echo >&2 "${prog}: [error]" "$@"
+	exit 1
+}
+
+[ ! -e '${db}' ] && die 'database file "${db}" does not exist (run "${prog} -r" to create one)'
+[ ! -f '${db}' ] && die 'database file "${db}" is not a regular file'
+[ ! -r '${db}' ] && die 'database file "${db}" is not readable'
+
+gzip -cd '${db}'
+]=]
+
+-- load database from file
+local function load_db()
+	local just <const> = context("loading database")
+	local cmd <const> = LOAD_DB_CMD:expand{ prog = app.NAME, db = DB_NAME }
+	local db <const> = shell.read(cmd, just)
+
+	return just(load(db, DB_NAME, "t", {}))()
+end
+
+-- compare existing files to the saved database
+local function diff(delim)
+	local db <const> = load_db()
+	local just <const> = context("listing changes")
+
+	io.stdout:setvbuf("full")
+
+	scan(function(a)
+		-- compare tags of a and b
+		local b <const> = db[a.name]
+
+		if a.tag ~= b.tag then
+			just(io.stdout:write("* ", a.name, delim))
+		end
+
+		db[a.name] = nil
+	end,
+	function(a)	-- preview
+		-- compare a and b
+		local b <const> = db[a.name]
+
+		-- new files
+		if not b then
+			just(io.stdout:write("+ ", a.name, delim))
 			return true
 		end
-	end
 
-	perror("unknown option %q\n", opt)
-	usage()
-end
-
--- ensure no options supplied
-local function no_options(args)
-	if #args > 0 then
-		perror("this command does not expect options\n")
-		usage()
-	end
-end
-
--- listing of changes
-local function do_diff(fname, db)
-	traverse(fname, function(name, kind, size, tag)
-		local stat = db[name]
-
-		if not stat then
-	        print_line("+", name)
-	        return
+		-- existing files
+		if a.type ~= b.type or a.size ~= b.size or (a.type == "l" and a.tag ~= b.tag) then
+			just(io.stdout:write("* ", a.name, delim))
+		elseif a.type == "f" and a.size > 0 then
+			return false	-- need checksum
 		end
 
-		if kind ~= stat.kind or size ~= stat.size or ((kind == TYPE_LINK or size == 0) and tag ~= stat.tag) then
-	        print_line("*", name)
-	        db[name] = nil
-	        return
-		end
-
-		if kind == TYPE_FILE and size > 0 then
-			return true	-- request checksum
-		end
-
-		db[name] = nil	-- this was either a link, or a file of zero size
+		db[a.name] = nil
+		return true
 	end)
 
-	-- compare sums
-	pump_sums(fname, function(name, sum)
-		if sum ~= db[name].tag then
-			print_line("*", name)
-	    end
-
-		db[name] = nil
-	end)
-
-	-- all remaining items must have been deleted
+	-- remaining items are all deleted
 	for name in pairs(db) do
-		print_line("-", name)
+		just(io.stdout:write("- ", name, delim))
 	end
 end
 
--- commands
-local function reset(args)
-	no_options(args)
-	database_file_must_exist()
-	return save_database(build_database())
-end
+-- help string
+local HELP <const> = "Usage: " .. app.NAME .. [=[ [OPTIONS]
 
-local function ls(args)
-	if one_option(args, "-0") then
-		print_line = print_line_0
-	end
+List all added, deleted, or modified files in the current directory and its subdirectories.
 
-	database_file_must_exist()
-	with_temp_file(do_diff, load_database())
-end
-
-local function init(args)
-	if not one_option(args, "-f", "--force") and database_file_exists() then
-		fail("database file already exists")
-	end
-
-	create_empty_database()
-end
+Options:
+  -0          use ASCII null as output separator
+  -r,--reset  record the current state of the directory tree for further comparisons
+  -h,--help   display this help and exit
+]=]
 
 -- main
-local function main()
-	local cmd_map = {
-		["help"] = usage,
-		["--help"] = usage,
-		["-h"] = usage,
-		["reset"] = reset,
-		["init"] = init,
-		["dump"] = dump_database
-	}
-
-	local cmd = cmd_map[arg[1]]
-
-	if cmd then
-		cmd(table.move(arg, 2, #arg, 1, {}))
-	else
-		ls(table.move(arg, 1, #arg, 1, {}))
+app:run(function()
+	if #arg > 1 then
+		app:fail("too many arguments")
 	end
-end
 
-run(main)
+	local opt <const> = arg[1]
+
+	if not opt then
+		diff("\n")
+	elseif opt == "-0" then
+		diff("\0")
+	elseif opt == "-r" or opt == "--reset" then
+		reset()
+	elseif opt == "-h" or opt == "--help" then
+		io.stderr:write(HELP)
+		os.exit(false)
+	else
+		app:fail("unknown option: %q", opt)
+	end
+end)
