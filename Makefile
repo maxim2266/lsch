@@ -2,7 +2,7 @@
 MAKEFLAGS += --no-builtin-rules --no-builtin-variables
 
 # targets
-.PHONY: clean test
+.PHONY: clean test install uninstall
 
 # binaries
 BIN  := lsch
@@ -18,7 +18,7 @@ LUA_VER := 5.4
 define COMPILE
 	luac$(LUA_VER) -o $@ $^
 	sed -i '1s|^|\#!/usr/bin/env lua$(LUA_VER)\n|' $@
-	chmod 0711 $@
+	chmod 0755 $@
 endef
 
 # compilation
@@ -35,3 +35,13 @@ test: $(TEST)
 $(TEST): app.lua test_app.lua
 	$(COMPILE)
 	./$@
+
+# installation
+PREFIX := /usr/local
+BINDIR := $(PREFIX)/bin
+
+install: $(BIN)
+	install -m555 -Dt $(DESTDIR)$(BINDIR) $^
+
+uninstall:
+	rm -f $(DESTDIR)$(BINDIR)/$(BIN)
