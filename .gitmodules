@@ -1,0 +1,3 @@
+[submodule "lua-app"]
+	path = lua-app
+	url = git@github.com:maxim2266/lua-app.git

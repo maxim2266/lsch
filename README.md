@@ -43,5 +43,7 @@ So far the tool has been tested on Linux Mint from version 20.3 and above, but i
 on other (at least Debian-based) Linux distributions.
 
 ### Installation
-`make install`, or `make PREFIX=~ install` for local installation, or just `make` and then copy
-`lsch` file to the desired location.
+Clone the repository with `git clone --recursive`, then either
+* `make install` to install `lsch` system-wide, or
+* `make PREFIX=~ install` for local installation, or
+* just `make` and then copy `lsch` file to any suitable location.
