@@ -6,7 +6,7 @@ local DB_NAME <const> = ".lsch.db"
 -- recursive directory iterator
 local function scan_dir(ctx) --> iterator
 	local just <const> = context("directory scanner", ctx)
-	local src = just(io.popen("find . -type 'f,l' -printf '%y %s %p\\0' -type l -printf '%l\\0'"))
+	local src = just(io.popen("exec find . -type 'f,l' -printf '%y %s %p\\0' -type l -printf '%l\\0'"))
 
 	src:setvbuf("full")
 
@@ -64,7 +64,7 @@ end
 -- sha256 calculator
 local function calc_sums(fname, ctx) --> iterator over (name, sum) pairs
 	local just <const> = context("sha256 calculator", ctx)
-	local cmd <const> = 'xargs -n 1 -0 -r -P "$(nproc)" -- sha256sum -bz < ' .. shell.quote(fname)
+	local cmd <const> = 'exec xargs -n 1 -0 -r -P "$(nproc)" -- sha256sum -bz < ' .. shell.quote(fname)
 	local src <const> = just(io.popen(cmd))
 
 	src:setvbuf("full")
@@ -172,7 +172,7 @@ then
 	[ ! -w '${db}' ] && die 'database file "${db}" is not writable'
 fi
 
-gzip -n9c '${tmp}' > '${db}'
+exec gzip -n9c '${tmp}' > '${db}'
 ]=]
 
 -- create and store a new database ("lsch --reset")
@@ -206,7 +206,7 @@ die() {
 [ ! -f '${db}' ] && die 'database file "${db}" is not a regular file'
 [ ! -r '${db}' ] && die 'database file "${db}" is not readable'
 
-gzip -cd '${db}'
+exec gzip -cd '${db}'
 ]=]
 
 -- load database from file
