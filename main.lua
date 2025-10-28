@@ -97,10 +97,10 @@ local function calc_sums(fname, ctx) --> iterator over (name, sum) pairs
 end
 
 -- scanner
-local function scan(consume, preview)
-	-- default preview function
-	if not preview then
-		preview = function() end
+local function scan(consume, want_checksum)
+	-- default want_checksum function
+	if not want_checksum then
+		want_checksum = function() return true end
 	end
 
 	-- error context
@@ -118,16 +118,14 @@ local function scan(consume, preview)
 
 	-- directory scan
 	for item in scan_dir() do
-		if not preview(item) then
-			if item.type == "l" or item.size == 0 then
-				consume(item)	-- links and empty files do not need checksums
-			else
-				-- schedule checksum calculation
-				just(tmp:write(item.name, "\0"))
+		if item.type == "l" or item.size == 0 or not want_checksum(item) then
+			consume(item)
+		else
+			-- schedule checksum calculation
+			just(tmp:write(item.name, "\0"))
 
-				files[item.name] = item
-				file_count = file_count + 1
-			end
+			files[item.name] = item
+			file_count = file_count + 1
 		end
 	end
 
@@ -226,34 +224,24 @@ local function diff(delim)
 	io.stdout:setvbuf("full")
 
 	scan(function(a)
-		-- compare tags of a and b
+		-- compare items a and b
 		local b <const> = db[a.name]
 
-		if a.tag ~= b.tag then
-			just(io.stdout:write("* ", a.name, delim))
-		end
-
-		db[a.name] = nil
-	end,
-	function(a)	-- preview
-		-- compare a and b
-		local b <const> = db[a.name]
-
-		-- new files
 		if not b then
-			just(io.stdout:write("+ ", a.name, delim))
-			return true
-		end
+			just(io.stdout:write("+ ", a.name, delim))	-- new item
+		else
+			if a.type ~= b.type or a.size ~= b.size or a.tag ~= b.tag then
+				just(io.stdout:write("* ", a.name, delim))	-- modified item
+			end
 
-		-- existing files
-		if a.type ~= b.type or a.size ~= b.size or (a.type == "l" and a.tag ~= b.tag) then
-			just(io.stdout:write("* ", a.name, delim))
-		elseif a.type == "f" and a.size > 0 then
-			return false	-- need checksum
+			db[a.name] = nil
 		end
+	end,
+	function(a)
+		-- see if checksum is needed
+		local b <const> = db[a.name]
 
-		db[a.name] = nil
-		return true
+		return b and a.type == b.type and a.size == b.size
 	end)
 
 	-- remaining items are all deleted
