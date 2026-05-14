@@ -248,6 +248,8 @@ local function diff(delim)
 	for name in pairs(db) do
 		just(io.stdout:write("- ", name, delim))
 	end
+
+	just(io.stdout:flush())
 end
 
 -- help string
