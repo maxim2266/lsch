@@ -254,13 +254,12 @@ end
 
 -- help string
 local HELP <const> = "Usage: " .. app.NAME .. [=[ [OPTIONS]
-
-List all added, deleted, or modified files in the current directory and its subdirectories.
+  List all added, deleted, and modified files in the current directory and its subdirectories.
 
 Options:
-  -0          use ASCII null as output separator
-  -r,--reset  record the current state of the directory tree for further comparisons
-  -h,--help   display this help and exit
+  -0           Use ASCII null as output separator
+  -r, --reset  Record the current state of the directory tree for further comparisons
+  -h, --help   Display this help and exit
 ]=]
 
 -- main
