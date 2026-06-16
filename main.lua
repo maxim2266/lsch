@@ -264,23 +264,21 @@ Options:
 ]=]
 
 -- main
-app:run(function()
-	if #arg > 1 then
-		app:fail("too many arguments")
-	end
+if #arg > 1 then
+	app:fail("too many arguments")
+end
 
-	local opt <const> = arg[1]
+local opt <const> = arg[1]
 
-	if not opt then
-		diff("\n")
-	elseif opt == "-0" then
-		diff("\0")
-	elseif opt == "-r" or opt == "--reset" then
-		reset()
-	elseif opt == "-h" or opt == "--help" then
-		io.stderr:write(HELP)
-		os.exit(false)
-	else
-		app:fail("unknown option: %q", opt)
-	end
-end)
+if not opt then
+	diff("\n")
+elseif opt == "-0" then
+	diff("\0")
+elseif opt == "-r" or opt == "--reset" then
+	reset()
+elseif opt == "-h" or opt == "--help" then
+	io.stderr:write(HELP)
+	os.exit(false)
+else
+	app:fail("unknown option: %q", opt)
+end
