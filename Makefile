@@ -25,11 +25,13 @@ clean:
 	rm -f $(BIN)
 
 # installation
-PREFIX := /usr/local
-BINDIR := $(PREFIX)/bin
+PREFIX  ?= /usr/local
+BINDIR  ?= $(PREFIX)/bin
+DESTDIR ?=
 
 install: $(BIN)
-	install -m555 -Dt $(DESTDIR)$(BINDIR) $^
+	install -d $(DESTDIR)$(BINDIR)
+	install -m 755 $(BIN) $(DESTDIR)$(BINDIR)/$(BIN)
 
 uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/$(BIN)
