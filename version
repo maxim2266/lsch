@@ -1,0 +1,18 @@
+#!/bin/sh -e
+
+if [ ! -d '.git' ]
+then
+	VER='0.0.0-no-git'
+else
+	# version from tag
+	MAJOR="$(git describe --abbrev=0 --tags 2>/dev/null || echo 'v0.0.0')"
+	MINOR="$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown')"
+
+	VER="$MAJOR-$MINOR"
+
+	# `dirty` status, ignoring untracked files
+	git status --porcelain | grep -q '^[^?]' && VER="$VER-dirty"
+fi
+
+# result
+echo "app.VERSION = '${VER#v}'"

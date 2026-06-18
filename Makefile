@@ -2,7 +2,7 @@
 MAKEFLAGS += --no-builtin-rules --no-builtin-variables
 
 # targets
-.PHONY: clean install uninstall
+.PHONY: all clean install uninstall
 
 # binary
 BIN := lsch
@@ -10,12 +10,13 @@ BIN := lsch
 # Lua version
 LUA_VER := 5.4
 
-# clear targets on error
-.DELETE_ON_ERROR:
-
 # compilation
+all: $(BIN)
+
 $(BIN): lua-app/app.lua main.lua
-	luac$(LUA_VER) -o $@ $^
+	./version > ver.lua
+	luac$(LUA_VER) -o $@ $< ver.lua $(wordlist 2, $(words $^), $^)
+	rm -f ver.lua
 	sed -i '1s|^|\#!/usr/bin/env lua$(LUA_VER)\n|' $@
 	chmod 0755 $@
 

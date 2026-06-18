@@ -254,12 +254,15 @@ end
 
 -- help string
 local HELP <const> = "Usage: " .. app.NAME .. [=[ [OPTIONS]
-  List all added, deleted, and modified files in the current directory and its subdirectories.
+  List all added, deleted, and modified files in the current directory
+  and its subdirectories.
 
 Options:
-  -0           Use ASCII null as output separator
-  -r, --reset  Record the current state of the directory tree for further comparisons
-  -h, --help   Display this help and exit
+  -0             Use ASCII null as output separator.
+  -r, --reset    Record the current state of the directory tree for
+                 further comparisons.
+  -h, --help     Display this help and exit.
+  -v, --version  Display version and exit.
 ]=]
 
 -- main
@@ -277,6 +280,9 @@ elseif opt == "-r" or opt == "--reset" then
 	reset()
 elseif opt == "-h" or opt == "--help" then
 	io.stderr:write(HELP)
+	os.exit(false)
+elseif opt == "-v" or opt == "--version" then
+	io.stderr:write(app.VERSION, "\n")
 	os.exit(false)
 else
 	app:fail("unknown option: %q", opt)
